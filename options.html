@@ -3,41 +3,40 @@
 <head>
   <title>YouTube Sampler Keys Options</title>
   <style>
+    /* Styles remain the same */
     body { font-family: sans-serif; padding: 10px; min-width: 350px; }
     label { display: inline-block; width: 80px; margin-bottom: 8px; vertical-align: middle; }
     input[type="number"] { width: 100px; margin-bottom: 8px; }
-    button { margin-top: 15px; padding: 8px 15px; }
-    #status { margin-top: 10px; font-weight: bold; min-height: 1em; }
+    #status { margin-top: 10px; font-weight: bold; min-height: 1em; color: green; }
     .mode-selection { margin-bottom: 20px; }
     .mode-selection label { width: auto; margin-right: 10px; }
     h2, h3 { margin-bottom: 10px; }
   </style>
 </head>
 <body>
-  <h2>Modo de Funcionamiento</h2>
+  <h2>Operating Mode (Currently Ignored)</h2>
   <div class="mode-selection">
     <input type="radio" id="mode-trigger" name="mode" value="trigger" checked>
-    <label for="mode-trigger">Trigger (Salta una vez por pulsación)</label>
+    <label for="mode-trigger">Trigger (Jump once per press)</label>
     <br>
     <input type="radio" id="mode-hold" name="mode" value="hold">
-    <label for="mode-hold">Hold (Reproduce mientras mantienes, pausa al soltar)</label>
+    <label for="mode-hold">Hold (Play while held, pause on release)</label>
   </div>
 
-  <h2>Tiempos Personalizados (en segundos)</h2>
-  <p>Introduce el tiempo en segundos al que saltará cada tecla numérica (1-0).</p>
+  <h2>Custom Timestamps (in seconds) - Autosave</h2>
+  <p>Enter the time. It will save automatically.</p>
 
-  <div><label for="key1">Tecla 1:</label> <input type="number" id="key1" step="0.1" min="0"> s</div>
-  <div><label for="key2">Tecla 2:</label> <input type="number" id="key2" step="0.1" min="0"> s</div>
-  <div><label for="key3">Tecla 3:</label> <input type="number" id="key3" step="0.1" min="0"> s</div>
-  <div><label for="key4">Tecla 4:</label> <input type="number" id="key4" step="0.1" min="0"> s</div>
-  <div><label for="key5">Tecla 5:</label> <input type="number" id="key5" step="0.1" min="0"> s</div>
-  <div><label for="key6">Tecla 6:</label> <input type="number" id="key6" step="0.1" min="0"> s</div>
-  <div><label for="key7">Tecla 7:</label> <input type="number" id="key7" step="0.1" min="0"> s</div>
-  <div><label for="key8">Tecla 8:</label> <input type="number" id="key8" step="0.1" min="0"> s</div>
-  <div><label for="key9">Tecla 9:</label> <input type="number" id="key9" step="0.1" min="0"> s</div>
-  <div><label for="key0">Tecla 0:</label> <input type="number" id="key0" step="0.1" min="0"> s</div>
+  <div><label for="key1">Key 1:</label> <input type="number" id="key1" step="0.1" min="0"> s</div>
+  <div><label for="key2">Key 2:</label> <input type="number" id="key2" step="0.1" min="0"> s</div>
+  <div><label for="key3">Key 3:</label> <input type="number" id="key3" step="0.1" min="0"> s</div>
+  <div><label for="key4">Key 4:</label> <input type="number" id="key4" step="0.1" min="0"> s</div>
+  <div><label for="key5">Key 5:</label> <input type="number" id="key5" step="0.1" min="0"> s</div>
+  <div><label for="key6">Key 6:</label> <input type="number" id="key6" step="0.1" min="0"> s</div>
+  <div><label for="key7">Key 7:</label> <input type="number" id="key7" step="0.1" min="0"> s</div>
+  <div><label for="key8">Key 8:</label> <input type="number" id="key8" step="0.1" min="0"> s</div>
+  <div><label for="key9">Key 9:</label> <input type="number" id="key9" step="0.1" min="0"> s</div>
+  <div><label for="key0">Key 0:</label> <input type="number" id="key0" step="0.1" min="0"> s</div>
 
-  <button id="save">Guardar Configuración</button>
   <div id="status"></div>
 
   <script src="options.js"></script>

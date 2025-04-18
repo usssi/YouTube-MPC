@@ -1,8 +1,19 @@
-// options.js
+// options.js (with Autosave and English Status Messages)
 
-const settingsKey = 'youtubeSamplerKeys_settings'; // Use one key for all settings
+const settingsKey = 'youtubeSamplerKeys_settings';
+let saveTimeout;
+const debounceTime = 500;
+const statusElement = document.getElementById('status');
 
-// Function to save options (timestamps and mode) to chrome.storage
+function debounce(func, delay) {
+  return function(...args) {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+      func.apply(this, args);
+    }, delay);
+  };
+}
+
 function saveOptions() {
   const timestamps = {};
   for (let i = 0; i <= 9; i++) {
@@ -11,13 +22,15 @@ function saveOptions() {
     if (value !== '' && !isNaN(parseFloat(value)) && parseFloat(value) >= 0) {
       timestamps[i.toString()] = parseFloat(value);
     } else {
-       timestamps[i.toString()] = null;
-       inputElement.value = '';
+      timestamps[i.toString()] = null;
     }
   }
 
-  // Get selected mode
-  const selectedMode = document.querySelector('input[name="mode"]:checked').value;
+  let selectedMode = 'trigger';
+  const modeChecked = document.querySelector('input[name="mode"]:checked');
+   if(modeChecked) {
+       selectedMode = modeChecked.value;
+   }
 
   const settings = {
     timestamps: timestamps,
@@ -25,36 +38,36 @@ function saveOptions() {
   };
 
   chrome.storage.sync.set({ [settingsKey]: settings }, () => {
-    const status = document.getElementById('status');
-     if (chrome.runtime.lastError) {
-        status.textContent = 'Error al guardar.';
-        console.error("Error saving settings:", chrome.runtime.lastError);
+    if (chrome.runtime.lastError) {
+      // --- ENGLISH STATUS ---
+      statusElement.textContent = 'Error saving settings.';
+      statusElement.style.color = 'red';
+      console.error("Error saving settings:", chrome.runtime.lastError);
     } else {
-        status.textContent = 'Configuración guardada.';
-        console.log("Settings saved:", settings);
-        setTimeout(() => {
-          status.textContent = '';
-        }, 1500);
+      // --- ENGLISH STATUS ---
+      statusElement.textContent = 'Saved.';
+      statusElement.style.color = 'green';
+      console.log("Autosaved settings:", settings);
+      setTimeout(() => {
+        statusElement.textContent = '';
+      }, 2000);
     }
   });
 }
 
-// Function to restore options from chrome.storage
 function restoreOptions() {
-  chrome.storage.sync.get([settingsKey], (result) => {
+   chrome.storage.sync.get([settingsKey], (result) => {
      if (chrome.runtime.lastError) {
         console.error("Error loading settings:", chrome.runtime.lastError);
-        // Set default mode if loading fails
         document.getElementById('mode-trigger').checked = true;
         return;
     }
-    const savedSettings = result[settingsKey] || {}; // Get the whole settings object
+    const savedSettings = result[settingsKey] || {};
     const savedTimestamps = savedSettings.timestamps || {};
-    const savedMode = savedSettings.mode || 'trigger'; // Default to trigger if not set
+    const savedMode = savedSettings.mode || 'trigger';
 
     console.log("Restoring options:", savedSettings);
 
-    // Restore timestamps
     for (let i = 0; i <= 9; i++) {
       const inputElement = document.getElementById(`key${i}`);
       if (savedTimestamps[i.toString()] !== undefined && savedTimestamps[i.toString()] !== null) {
@@ -64,16 +77,28 @@ function restoreOptions() {
       }
     }
 
-    // Restore mode
     const modeRadioButton = document.getElementById(`mode-${savedMode}`);
     if (modeRadioButton) {
         modeRadioButton.checked = true;
     } else {
-        // Fallback if saved mode is invalid somehow
         document.getElementById('mode-trigger').checked = true;
     }
   });
 }
 
-document.addEventListener('DOMContentLoaded', restoreOptions);
-document.getElementById('save').addEventListener('click', saveOptions);
+document.addEventListener('DOMContentLoaded', () => {
+  restoreOptions();
+
+  const debouncedSave = debounce(saveOptions, debounceTime);
+
+  for (let i = 0; i <= 9; i++) {
+    const inputElement = document.getElementById(`key${i}`);
+    if(inputElement) {
+        inputElement.addEventListener('input', debouncedSave);
+    }
+  }
+   const modeRadios = document.querySelectorAll('input[name="mode"]');
+    modeRadios.forEach(radio => {
+        radio.addEventListener('change', debouncedSave);
+    });
+});

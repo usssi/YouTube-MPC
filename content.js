@@ -5,6 +5,13 @@ let customTimestamps = {};
 let extensionIsEnabled = true;
 let loadedSelectedBank = 'A';
 
+function updateBaseIconState() {
+    let isActive = extensionIsEnabled && Object.values(customTimestamps || {}).some(ts => ts !== null && !isNaN(ts));
+    let newBaseState = isActive ? 'green' : 'grey';
+    console.log(`[Content_YT_Sampler] Requesting background update base state to: ${newBaseState}`);
+    chrome.runtime.sendMessage({ baseState: newBaseState }).catch(error => console.log("[Content_YT_Sampler] Error sending base state message:", error));
+}
+
 function getDefaultBankData() {
     const timestamps = {};
     for (let i = 1; i <= 9; i++) { timestamps[i.toString()] = null; }
@@ -46,6 +53,7 @@ async function saveUpdatedSettings(settings) {
         }
         await chrome.storage.local.set({ [settingsStorageKey]: settings });
         console.log("[Content_YT_Sampler] Settings updated in storage by content script:", settings);
+
     } catch (error) {
         console.error("[Content_YT_Sampler] Error saving updated settings:", error);
     }
@@ -115,6 +123,7 @@ function loadActiveBankData() {
             } else {
                  console.warn("[Content_YT_Sampler] loadActiveBankData: Detected OLD or INVALID structure. Using defaults.");
                  if(loadedSettings) console.log("(Received data was:", loadedSettings, ")");
+                 useTimestamps = getDefaultBankData().timestamps;
             }
         }
         extensionIsEnabled = useIsEnabled;
@@ -122,6 +131,8 @@ function loadActiveBankData() {
         customTimestamps = useTimestamps;
 
         console.log(`[Content_YT_Sampler] loadActiveBankData: === FINAL STATE ===> Enabled: ${extensionIsEnabled}, Selected Bank: ${loadedSelectedBank}, Timestamps:`, customTimestamps);
+
+        updateBaseIconState();
     });
 }
 
@@ -135,10 +146,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 });
 
 document.addEventListener('keydown', async (event) => {
-    if (!event || !event.key || !event.code) {
-        console.warn("[Content_YT_Sampler] Keydown event missing key/code property:", event);
-        return;
-    }
+    if (!event || !event.key || !event.code) { return; }
 
     const code = event.code;
     const key = event.key;
@@ -148,52 +156,53 @@ document.addEventListener('keydown', async (event) => {
         return;
     }
 
+    if ((event.code === 'ControlLeft' || event.code === 'ControlRight') && !event.repeat) {
+        chrome.runtime.sendMessage({ newState: 'recording' }).catch(error => console.log("[Content_YT_Sampler] Error sending recording message (Ctrl down):", error));
+    }
+
+
     let actionHandled = false;
     let videoPlayer;
 
+    // --- Step 1: Handle Global Numpad Keys (Bank Select, Toggle, Play/Pause) ---
+    let bankToSelect = null;
     switch (code) {
-        case "NumpadDivide":
-             console.log("[Content_YT_Sampler] Action: Numpad / -> Select Bank A");
-             event.preventDefault(); event.stopPropagation();
-             selectBank('A'); actionHandled = true; break;
-        case "NumpadMultiply":
-             console.log("[Content_YT_Sampler] Action: Numpad * -> Select Bank B");
-             event.preventDefault(); event.stopPropagation();
-             selectBank('B'); actionHandled = true; break;
-        case "NumpadSubtract":
-             console.log("[Content_YT_Sampler] Action: Numpad - -> Select Bank C");
-             event.preventDefault(); event.stopPropagation();
-             selectBank('C'); actionHandled = true; break;
-        case "NumpadAdd":
-             console.log("[Content_YT_Sampler] Action: Numpad + -> Select Bank D");
-             event.preventDefault(); event.stopPropagation();
-             selectBank('D'); actionHandled = true; break;
-        case "NumpadDecimal":
-             console.log("[Content_YT_Sampler] Action: Numpad . -> Toggle Enable/Disable");
-             event.preventDefault(); event.stopPropagation();
-             toggleExtensionEnabled(); actionHandled = true; break;
+        case "NumpadDivide":   bankToSelect = 'A'; actionHandled = true; break;
+        case "NumpadMultiply": bankToSelect = 'B'; actionHandled = true; break;
+        case "NumpadSubtract": bankToSelect = 'C'; actionHandled = true; break;
+        case "NumpadAdd":      bankToSelect = 'D'; actionHandled = true; break;
+        case "NumpadDecimal":  toggleExtensionEnabled(); actionHandled = true; break;
         case "NumpadEnter":
              videoPlayer = document.querySelector('video.html5-main-video');
-             if (videoPlayer) {
-                  event.preventDefault(); event.stopPropagation();
-                  if (videoPlayer.paused) {
-                      console.log("[Content_YT_Sampler] Action: Numpad Enter -> Play");
-                      videoPlayer.play();
-                  } else {
-                      console.log("[Content_YT_Sampler] Action: Numpad Enter -> Pause");
-                      videoPlayer.pause();
-                  }
-             } else { console.warn("[Content_YT_Sampler] Numpad Enter: Video player not found!"); }
+             if (videoPlayer) { videoPlayer.paused ? videoPlayer.play() : videoPlayer.pause(); }
              actionHandled = true; break;
-
     }
-
-    if (actionHandled) return;
-
-    if (!extensionIsEnabled) {
-        return;
+    // If a bank selection key was pressed, send message THEN select bank
+    if (bankToSelect) {
+        chrome.runtime.sendMessage({ newState: 'changing_bank' }).catch(error => console.log("[Content_YT_Sampler] Error sending changing bank message:", error));
+        selectBank(bankToSelect);
     }
+    // Prevent default and return if any global key was handled
+    if(actionHandled) { event.preventDefault(); event.stopPropagation(); return; }
 
+    // --- Step 2: Check if Extension is Disabled ---
+    if (!extensionIsEnabled) { return; }
+
+    // --- Step 3: Handle Ctrl + Numpad (Set Timestamp - CHECK FIRST!) ---
+    if (event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey && code.startsWith("Numpad")) {
+        const numpadKeyNumber = code.slice(-1);
+        if (numpadKeyNumber >= '1' && numpadKeyNumber <= '9') {
+            event.preventDefault(); event.stopPropagation();
+            videoPlayer = document.querySelector('video.html5-main-video');
+            if (videoPlayer) {
+                setTimestampForKey(numpadKeyNumber, videoPlayer.currentTime);
+            }
+            actionHandled = true;
+        }
+    }
+    if(actionHandled) { return; }
+
+    // --- Step 4: Handle Plain Numpad (Trigger Cue or Reset) ---
     actionHandled = true;
     switch (code) {
         case "Numpad1": case "Numpad2": case "Numpad3":
@@ -201,51 +210,46 @@ document.addEventListener('keydown', async (event) => {
         case "Numpad7": case "Numpad8": case "Numpad9":
             const keyNumber = code.slice(-1);
             const targetTime = customTimestamps[keyNumber];
-            console.log(`[Content_YT_Sampler] Numpad ${keyNumber} pressed. Timestamp lookup in bank '${loadedSelectedBank}':`, targetTime);
             if (targetTime !== undefined && targetTime !== null && !isNaN(targetTime)) {
+                chrome.runtime.sendMessage({ newState: 'playing_cue' }).catch(error => console.log("[Content_YT_Sampler] Error sending playing cue message:", error));
                 videoPlayer = document.querySelector('video.html5-main-video');
                 if (videoPlayer) {
-                    console.log(`[Content_YT_Sampler] Action: Numpad ${keyNumber} (Bank ${loadedSelectedBank}) -> ${targetTime}s`);
-                    event.preventDefault(); event.stopPropagation();
                     videoPlayer.currentTime = parseFloat(targetTime); videoPlayer.play();
-                } else { console.warn(`[Content_YT_Sampler] Numpad ${keyNumber}: Video player not found!`); }
+                }
             } else {
                  actionHandled = false;
             }
             break;
-
         case "Numpad0":
              videoPlayer = document.querySelector('video.html5-main-video');
-             if (videoPlayer) {
-                 console.log("[Content_YT_Sampler] Action: Numpad 0 -> Pause & Reset to 0s");
-                 event.preventDefault(); event.stopPropagation(); videoPlayer.pause(); videoPlayer.currentTime = 0;
-             } else { console.warn("[Content_YT_Sampler] Numpad 0: Video player not found!"); }
+             if (videoPlayer) { videoPlayer.pause(); videoPlayer.currentTime = 0; }
              break;
-
         default:
             actionHandled = false;
             break;
     }
 
-    if (actionHandled) return;
-
-
-    if (event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey && code.startsWith("Numpad")) {
-        const numpadKeyNumber = code.slice(-1);
-
-        if (numpadKeyNumber >= '1' && numpadKeyNumber <= '9') {
-            console.log(`[Content_YT_Sampler] Ctrl+${code} detected. Attempting to SET timestamp...`);
-            event.preventDefault(); event.stopPropagation();
-            videoPlayer = document.querySelector('video.html5-main-video');
-            if (videoPlayer) {
-                const currentTime = videoPlayer.currentTime;
-                setTimestampForKey(numpadKeyNumber, currentTime);
-            } else {
-                console.warn("[Content_YT_Sampler] Ctrl+NumpadKey: Video player not found.");
-            }
-            actionHandled = true;
-        }
+    if(actionHandled) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
     }
 
+}, true);
+
+
+// --- Key Up Listener (Unchanged) ---
+document.addEventListener('keyup', async (event) => {
+     if (!event || !event.code) return;
+     const code = event.code;
+
+     if (code === 'ControlLeft' || code === 'ControlRight') {
+         chrome.runtime.sendMessage({ newState: 'revert_to_base' }).catch(error => console.log("[Content_YT_Sampler] Error sending revert (ctrl) message:", error));
+     }
+     // Revert temporary 'playing_cue' or 'changing_bank' icons on Numpad key up
+     // Note: The background script timeout handles this automatically now.
+     // This keyup logic is mainly for reverting the 'recording' state on Ctrl release.
+     // We might still want to revert playing_cue explicitly if timeout is too long?
+     // Let's stick with the timeout for now for playing/bank icons.
 
 }, true);

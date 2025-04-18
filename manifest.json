@@ -1,24 +1,33 @@
-// manifest.json (Check 'name' and 'description')
 {
   "manifest_version": 3,
-  // Ensure these are in English
   "name": "YouTube Sampler Keys",
-  "version": "1.0", // Or your current version
+  "version": "1.0",
   "description": "Remaps number keys (1-0) to jump to custom timestamps in YouTube videos.",
   "permissions": [
     "storage"
-    // Add "commands" here ONLY if you implement the complex solution later
   ],
   "content_scripts": [
     {
-      "matches": ["*://*.youtube.com/watch*"], // Updated match pattern
+      "matches": ["*://*.youtube.com/*"],
       "js": ["content.js"]
     }
   ],
   "options_page": "options.html",
   "action": {
-    "default_title": "Configure YouTube Sampler Keys", // Title tooltip
-    "default_popup": "options.html" // Opens options as popup
-  }
-  // Add "background" and "commands" sections ONLY if needed later
+    "default_title": "Configure YouTube Sampler Keys",
+    "default_popup": "options.html",
+    "default_icon": {
+      "16": "icons/16x/16_off.png",
+      "48": "icons/48x/48_off.png",
+      "128": "icons/128x/128_off.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+   "icons": {
+      "16": "icons/16x/16_off.png",
+      "48": "icons/48x/48_off.png",
+      "128": "icons/128x/128_off.png"
+    }
 }

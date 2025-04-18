@@ -2,73 +2,128 @@
 
 console.log("YouTube Sampler Keys content script loaded.");
 
-let customTimestamps = {}; // To hold the mapping like { '1': 15, '2': 30.5, ... }
+let customSettings = { // Store both timestamps and mode
+    timestamps: {},
+    mode: 'trigger' // Default mode
+};
+const keysCurrentlyDown = new Set(); // Track which keys are currently held down
 
-// Function to load timestamps from storage
-function loadTimestamps() {
-  chrome.storage.sync.get(['youtubeSamplerKeys_timestamps'], (result) => {
+// Function to load settings from storage
+function loadSettings() {
+  // Use the same key as in options.js
+  chrome.storage.sync.get(['youtubeSamplerKeys_settings'], (result) => {
     if (chrome.runtime.lastError) {
-      console.error("Error loading timestamps:", chrome.runtime.lastError);
-      customTimestamps = {}; // Default to empty if error
+      console.error("Error loading settings:", chrome.runtime.lastError);
+      // Use default settings on error
+      customSettings = { timestamps: {}, mode: 'trigger' };
     } else {
-      customTimestamps = result.youtubeSamplerKeys_timestamps || {}; // Use saved data or default to empty object
-      console.log("Loaded timestamps:", customTimestamps);
+      // Use saved data or default object
+      customSettings = result.youtubeSamplerKeys_settings || { timestamps: {}, mode: 'trigger' };
+      console.log("Loaded settings:", customSettings);
     }
   });
 }
 
-// Load timestamps when the script starts
-loadTimestamps();
+// Load settings when the script starts
+loadSettings();
 
-// Listen for changes in storage (e.g., when options are saved)
+// Listen for changes in storage
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'sync' && changes.youtubeSamplerKeys_timestamps) {
-    customTimestamps = changes.youtubeSamplerKeys_timestamps.newValue || {};
-    console.log("Timestamps updated:", customTimestamps);
+  if (namespace === 'sync' && changes.youtubeSamplerKeys_settings) {
+    customSettings = changes.youtubeSamplerKeys_settings.newValue || { timestamps: {}, mode: 'trigger' };
+    console.log("Settings updated:", customSettings);
+     // Clear keysCurrentlyDown if settings change, just in case
+    keysCurrentlyDown.clear();
   }
 });
 
-// Listen for keydown events on the whole page
+// --- Key Down Listener ---
 document.addEventListener('keydown', (event) => {
-  // Ignore key presses if modifier keys (Ctrl, Alt, Shift, Meta) are held
-  if (event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) {
-    return;
-  }
+  const key = event.key;
 
-  // Ignore if the user is typing in an input field, textarea, or contenteditable element
-  const targetElement = event.target;
+  // Ignore if modifier keys are held or if typing in input fields
+  if (event.ctrlKey || event.altKey || event.shiftKey || event.metaKey || event.repeat) {
+      // IMPORTANT: event.repeat helps ignore the browser's automatic key repetition
+      // However, we still need keysCurrentlyDown for the Hold mode logic on keyup
+      // And to prevent accidental double-trigger if event.repeat isn't perfectly reliable
+      return;
+  }
+   const targetElement = event.target;
   if (targetElement.tagName === 'INPUT' || targetElement.tagName === 'TEXTAREA' || targetElement.isContentEditable) {
     return;
   }
 
-  // Check if the pressed key is a number key (1-9 or 0)
-  const key = event.key; // '1', '2', ..., '9', '0'
-
+  // Check if it's a sampler key (0-9)
   if (key >= '0' && key <= '9') {
-    const targetTime = customTimestamps[key]; // Get the custom time for this key
+    const targetTime = customSettings.timestamps[key];
 
-    if (targetTime !== undefined && targetTime !== null && !isNaN(targetTime)) {
-      console.log(`Key ${key} pressed, seeking to ${targetTime} seconds.`);
+    // Check if a custom time is defined AND if the key is NOT already down
+    if (targetTime !== undefined && targetTime !== null && !isNaN(targetTime) && !keysCurrentlyDown.has(key)) {
+        console.log(`Key ${key} down. Mode: ${customSettings.mode}. Seeking to ${targetTime}s.`);
 
-      // Find the main YouTube video element
-      const videoPlayer = document.querySelector('video.html5-main-video');
+        const videoPlayer = document.querySelector('video.html5-main-video');
 
-      if (videoPlayer) {
-        // Prevent YouTube's default behavior for number keys
-        event.preventDefault();
-        event.stopPropagation();
+        if (videoPlayer) {
+            // Mark the key as down BEFORE changing video state
+            keysCurrentlyDown.add(key);
 
-        // Set the video's current time
-        videoPlayer.currentTime = parseFloat(targetTime);
-      } else {
-        console.warn("YouTube video player not found.");
-      }
-    } else {
-      // Optional: Let YouTube handle the key if no custom time is set for it
-      // console.log(`No custom timestamp defined for key ${key}. Allowing default behavior.`);
-      // If you *always* want to override 1-0, uncomment the preventDefault/stopPropagation below
-      // event.preventDefault();
-      // event.stopPropagation();
+            // Prevent default YouTube behavior
+            event.preventDefault();
+            event.stopPropagation();
+
+            // Seek to the target time
+            videoPlayer.currentTime = parseFloat(targetTime);
+
+            // Specific actions based on mode
+            if (customSettings.mode === 'hold') {
+                // In Hold mode, ensure video plays
+                videoPlayer.play();
+            }
+             // In Trigger mode, just seeking is enough (done above)
+
+        } else {
+            console.warn("YouTube video player not found.");
+        }
+    } else if (keysCurrentlyDown.has(key)) {
+         // If key is already down, prevent default anyway to stop YouTube's action on repeats
+         if (targetTime !== undefined && targetTime !== null && !isNaN(targetTime)) {
+             event.preventDefault();
+             event.stopPropagation();
+         }
     }
   }
-}, true); // Use capture phase to catch event early
+}, true); // Use capture phase
+
+
+// --- Key Up Listener ---
+document.addEventListener('keyup', (event) => {
+    const key = event.key;
+
+    // Check if the released key is one we were tracking
+    if (keysCurrentlyDown.has(key)) {
+        console.log(`Key ${key} up. Mode: ${customSettings.mode}.`);
+
+        // Mark the key as no longer down
+        keysCurrentlyDown.delete(key);
+
+        // Specific actions for HOLD mode on key release
+        if (customSettings.mode === 'hold') {
+            // Only act if it was a valid sampler key
+             const targetTime = customSettings.timestamps[key];
+             if (targetTime !== undefined && targetTime !== null && !isNaN(targetTime)) {
+                const videoPlayer = document.querySelector('video.html5-main-video');
+                if (videoPlayer) {
+                    console.log(`Pausing video because key ${key} released in Hold mode.`);
+                    videoPlayer.pause();
+
+                    // Prevent potential default browser/youtube actions on keyup too
+                    event.preventDefault();
+                    event.stopPropagation();
+                } else {
+                     console.warn("YouTube video player not found for keyup pause.");
+                }
+            }
+        }
+    }
+     // No specific action needed for Trigger mode on keyup
+}, true); // Use capture phase

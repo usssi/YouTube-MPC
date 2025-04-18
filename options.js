@@ -1,29 +1,19 @@
-// options.js (Autosave only, 'Set Current Cue' removed)
+// options.js (Simplified: Enable/Disable + Clear All - NO File I/O)
 
-const settingsKey = 'youtubeSamplerKeys_settings';
-let saveTimeout;
-const debounceTime = 500; // 0.5 seconds debounce
+const currentSetStorageKey = 'youtubeSampler_currentSet'; // Use sync storage
 const statusElement = document.getElementById('status');
+const enableSwitchElement = document.getElementById('enable-switch');
 
-console.log("Options script loaded (Autosave version).");
+let isInitialized = false; // Initialization Flag
 
-// --- Debounce Function ---
-function debounce(func, delay) {
-  return function(...args) {
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => {
-      func.apply(this, args);
-    }, delay);
-  };
-}
+console.log("Options script loaded (Enable/Disable + ClearAll version).");
 
-// --- Save Options Function ---
-function saveOptions() {
-    console.log("Autosave: saveOptions() called.");
+// --- Helper function to read current UI state (including switch) ---
+function getCurrentSettingsFromUI() {
     const timestamps = {};
     for (let i = 0; i <= 9; i++) {
         const inputElement = document.getElementById(`key${i}`);
-        if (!inputElement) continue; // Skip if element missing
+        if (!inputElement) continue;
         const value = inputElement.value;
         if (value !== '' && !isNaN(parseFloat(value)) && parseFloat(value) >= 0) {
             timestamps[i.toString()] = parseFloat(value);
@@ -38,96 +28,125 @@ function saveOptions() {
         selectedMode = modeChecked.value;
     }
 
-    const settings = {
+    const isEnabled = enableSwitchElement ? enableSwitchElement.checked : true;
+
+    return {
+        isEnabled: isEnabled,
         timestamps: timestamps,
         mode: selectedMode
     };
+}
 
-    chrome.storage.sync.set({ [settingsKey]: settings }, () => {
+// --- Helper function to update UI from data (including switch) ---
+function updateUIFromSettings(settings) {
+    const timestampsData = settings?.timestamps || {};
+    const modeData = settings?.mode || 'trigger';
+    const isEnabledData = (settings && typeof settings.isEnabled === 'boolean') ? settings.isEnabled : true;
+
+    console.log("Updating UI from settings:", settings);
+
+    // Update timestamp inputs
+    for (let i = 0; i <= 9; i++) {
+         const inputElement = document.getElementById(`key${i}`);
+         if (inputElement) {
+             const savedTime = timestampsData[i.toString()];
+             inputElement.value = (savedTime !== undefined && savedTime !== null) ? savedTime : '';
+         }
+    }
+    // Update mode radio button (though hidden)
+    const modeRadioButton = document.getElementById(`mode-${modeData}`);
+    if (modeRadioButton) {
+         modeRadioButton.checked = true;
+    } else {
+         document.getElementById('mode-trigger')?.setAttribute('checked', true);
+    }
+    // Update enable switch state
+    if (enableSwitchElement) {
+        enableSwitchElement.checked = isEnabledData;
+    }
+}
+
+
+// --- Save the current UI state to Chrome Storage ---
+function saveCurrentSetToStorage() {
+    if (!isInitialized) {
+        console.log("Skipping save: Not initialized yet.");
+        return;
+    }
+    const settings = getCurrentSettingsFromUI();
+    console.log("Saving current set to storage:", settings);
+
+    chrome.storage.sync.set({ [currentSetStorageKey]: settings }, () => {
         if (chrome.runtime.lastError) {
-            statusElement.textContent = 'Error saving settings.';
+            console.error("Error saving current set to storage:", chrome.runtime.lastError);
+            statusElement.textContent = 'Error saving settings!';
             statusElement.style.color = 'red';
-            console.error("Autosave Error:", chrome.runtime.lastError);
         } else {
-            statusElement.textContent = 'Saved.';
+            console.log("Current set saved to storage successfully.");
+            statusElement.textContent = 'Saved.'; // Show confirmation
             statusElement.style.color = 'green';
-            console.log("Autosave success:", settings);
+            statusElement.style.opacity = '1';
             setTimeout(() => {
-                if (statusElement.textContent === 'Saved.') { // Avoid clearing error messages
-                    statusElement.textContent = '';
-                }
-            }, 2000);
+                 if (statusElement.textContent === 'Saved.') {
+                    statusElement.style.opacity = '0';
+                 }
+             }, 1500);
         }
     });
 }
 
-// --- Restore Options Function ---
+// --- Restore Options from Storage on Load ---
 function restoreOptions() {
-    console.log("Restoring options...");
-    chrome.storage.sync.get([settingsKey], (result) => {
+    console.log("Restoring options from storage...");
+    isInitialized = false; // Block saves during restore
+    chrome.storage.sync.get([currentSetStorageKey], (result) => {
         if (chrome.runtime.lastError) {
            console.error("Error loading settings:", chrome.runtime.lastError);
-           document.getElementById('mode-trigger').checked = true;
-           return;
-       }
-       const savedSettings = result[settingsKey] || {};
-       const savedTimestamps = savedSettings.timestamps || {};
-       const savedMode = savedSettings.mode || 'trigger';
-
-       console.log("Restoring options:", savedSettings);
-
-       // Restore timestamps
-       for (let i = 0; i <= 9; i++) {
-         const inputElement = document.getElementById(`key${i}`);
-         if(inputElement) { // Check if element exists
-             if (savedTimestamps[i.toString()] !== undefined && savedTimestamps[i.toString()] !== null) {
-               inputElement.value = savedTimestamps[i.toString()];
-             } else {
-               inputElement.value = '';
-             }
-         }
-       }
-
-       // Restore mode (UI only)
-       const modeRadioButton = document.getElementById(`mode-${savedMode}`);
-       if (modeRadioButton) {
-           modeRadioButton.checked = true;
-       } else {
-           document.getElementById('mode-trigger').checked = true;
-       }
+           statusElement.textContent = 'Error loading settings.';
+           statusElement.style.color = 'red';
+           updateUIFromSettings({isEnabled: true}); // Reset UI
+        } else {
+           const savedSettings = result[currentSetStorageKey];
+           console.log("Loaded set from storage:", savedSettings);
+           updateUIFromSettings(savedSettings || {isEnabled: true}); // Update UI
+        }
+        // Allow saving now that restore is complete
+        isInitialized = true;
+        console.log("Initialization complete. Saving enabled.");
      });
 }
 
-// --- Setup Listeners ---
-// Create the debounced save function *once*
-const debouncedSave = debounce(saveOptions, debounceTime);
-
-document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM Loaded. Setting up listeners.");
-    restoreOptions(); // Load options
-
-    // Add 'input' listeners to number fields for autosave
-    console.log("Setting up autosave input listeners...");
-    for (let i = 0; i <= 9; i++) {
-        const inputElement = document.getElementById(`key${i}`);
-        if (inputElement) {
-            inputElement.addEventListener('input', (event) => {
-                console.log(`Autosave: Input detected on key${i}. Triggering save.`);
-                debouncedSave(); // Call the debounced save function
-            });
-        } else {
-             console.warn(`Input element key${i} not found during listener setup.`);
-        }
+// --- Button: Clear All Timestamps ---
+function handleClearAll() {
+    console.log("Clear All clicked.");
+    if (confirm("Are you sure you want to clear all timestamp inputs?")) {
+        const currentEnableState = enableSwitchElement ? enableSwitchElement.checked : true;
+        // Update UI first
+        updateUIFromSettings({isEnabled: currentEnableState, timestamps: {}, mode: 'trigger'});
+        // Then save the cleared state
+        if (isInitialized) saveCurrentSetToStorage();
+        statusElement.textContent = 'Timestamp fields cleared.';
+        statusElement.style.color = 'blue';
+        setTimeout(() => { statusElement.textContent = ''; }, 2000);
     }
+}
 
-    // Add 'change' listeners to mode radio buttons
-    console.log("Setting up mode change listeners...");
-    const modeRadios = document.querySelectorAll('input[name="mode"]');
-    modeRadios.forEach(radio => {
-        radio.addEventListener('change', debouncedSave); // Also trigger save on mode change
+// --- Setup Listeners ---
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM Loaded. Setting up listeners (Enable/Disable + ClearAll).");
+    restoreOptions(); // Load the last active set
+
+    // Attach listeners to buttons
+    document.getElementById('clear-all')?.addEventListener('click', handleClearAll);
+    // Removed listeners for save-set, load-set, load-file-input
+
+    // Attach listeners to inputs/radios/switch to save changes immediately to storage
+    const inputsToSave = document.querySelectorAll('input[type="number"], input[name="mode"], #enable-switch');
+    inputsToSave.forEach(input => {
+        const eventType = (input.type === 'checkbox' || input.type === 'radio') ? 'change' : 'input';
+        // Save function checks the isInitialized flag internally
+        input.addEventListener(eventType, saveCurrentSetToStorage);
     });
-
-    // Removed the setup for '.set-cue-button' listeners
 
     console.log("Event listeners setup complete.");
 });

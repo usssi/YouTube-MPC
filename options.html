@@ -3,28 +3,47 @@
 <head>
   <title>YouTube Sampler Keys Options</title>
   <style>
-    /* Simplified Styles */
+    /* Styles */
     body { font-family: sans-serif; padding: 10px; min-width: 350px; }
     label { display: inline-block; width: 80px; margin-bottom: 8px; vertical-align: middle; }
     input[type="number"] { width: 100px; margin-bottom: 8px; margin-right: 5px; vertical-align: middle;}
-    #status { margin-top: 10px; font-weight: bold; min-height: 1em; color: green; }
-    .mode-selection { margin-bottom: 20px; }
-    .mode-selection label { width: auto; margin-right: 10px; }
+    #status { margin-top: 15px; font-weight: bold; min-height: 1em; color: green; transition: opacity 0.5s ease-out; }
+    .mode-selection { display: none; } /* Hidden */
     h2, h3 { margin-bottom: 10px; }
+    .button-section { margin-top: 20px; display: flex; gap: 10px; }
+    button { padding: 8px 12px; cursor: pointer; }
+
+    /* --- CSS for the Toggle Switch --- */
+    .enable-section { margin-bottom: 20px; display: flex; align-items: center;}
+    .switch { position: relative; display: inline-block; width: 50px; height: 24px; margin-right: 10px;}
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; }
+    input:checked + .slider { background-color: #2196F3; }
+    input:focus + .slider { box-shadow: 0 0 1px #2196F3; }
+    input:checked + .slider:before { transform: translateX(26px); }
+    /* Rounded sliders */
+    .slider.round { border-radius: 24px; }
+    .slider.round:before { border-radius: 50%; }
+    /* --- End CSS for Toggle Switch --- */
   </style>
 </head>
 <body>
-  <h2>Operating Mode (Currently Ignored)</h2>
-  <div class="mode-selection">
-    <input type="radio" id="mode-trigger" name="mode" value="trigger" checked>
-    <label for="mode-trigger">Trigger</label>
-    <br>
-    <input type="radio" id="mode-hold" name="mode" value="hold">
-    <label for="mode-hold">Hold</label>
-  </div>
+  <h2>Extension Status</h2>
+   <div class="enable-section">
+      <label class="switch">
+        <input type="checkbox" id="enable-switch">
+        <span class="slider round"></span>
+      </label>
+      <label for="enable-switch" style="width: auto;">Enable Custom Hotkeys</label>
+    </div>
 
-  <h2>Custom Timestamps (in seconds) - Autosave</h2>
-  <p>Enter the time. It will save automatically.</p>
+  <div class="mode-selection">
+      <h2>Operating Mode (Currently Ignored)</h2>
+      </div>
+
+  <h2>Custom Timestamps (in seconds)</h2>
+  <p>Configure timestamps below. Changes are saved automatically.</p>
 
   <div><label for="key1">Key 1:</label> <input type="number" id="key1" step="0.1" min="0"> s</div>
   <div><label for="key2">Key 2:</label> <input type="number" id="key2" step="0.1" min="0"> s</div>
@@ -37,8 +56,10 @@
   <div><label for="key9">Key 9:</label> <input type="number" id="key9" step="0.1" min="0"> s</div>
   <div><label for="key0">Key 0:</label> <input type="number" id="key0" step="0.1" min="0"> s</div>
 
-  <div id="status"></div>
+  <div class="button-section">
+      <button id="clear-all">Clear All Timestamps</button>
+      </div>
 
-  <script src="options.js"></script>
+  <div id="status"></div> <script src="options.js"></script>
 </body>
 </html>

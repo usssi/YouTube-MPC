@@ -1,65 +1,84 @@
-// content.js (Simplified Jumper with Ensure Play - Message Listener REMOVED)
+// content.js (Checks Enable/Disable state from sync storage)
 
-console.log("YouTube Sampler Keys - Simple Jumper with Play Loaded.");
+console.log("YouTube Sampler Keys - Simple Jumper with Enable/Disable Check.");
 
-let customTimestamps = {}; // Only stores the timestamp mappings { '1': 10, '2': 25.5, ... }
+const currentSetStorageKey = 'youtubeSampler_currentSet'; // Using sync storage
+let customTimestamps = {};
+let extensionIsEnabled = true; // Default to enabled
 
-// Function to load the configuration from Chrome storage
-function loadSettings() {
-  chrome.storage.sync.get(['youtubeSamplerKeys_settings'], (result) => {
+// --- Load the currently active set AND enabled state from storage ---
+function loadActiveSet() {
+  console.log("Content Script: Loading active set and status from storage...");
+  chrome.storage.sync.get([currentSetStorageKey], (result) => {
     if (chrome.runtime.lastError) {
-      console.error("Error loading settings:", chrome.runtime.lastError);
+      console.error("Error loading active set:", chrome.runtime.lastError);
       customTimestamps = {};
+      extensionIsEnabled = true; // Default to enabled on error
     } else {
-      const savedSettings = result.youtubeSamplerKeys_settings || {};
-      customTimestamps = savedSettings.timestamps || {};
-      console.log("Loaded timestamps:", customTimestamps);
+      const savedSettings = result[currentSetStorageKey]; // Allow undefined if never saved
+      customTimestamps = savedSettings?.timestamps || {};
+      // Set global enabled state, default to true if setting is missing entirely or isEnabled is not set
+      extensionIsEnabled = (savedSettings && typeof savedSettings.isEnabled === 'boolean') ? savedSettings.isEnabled : true;
+
+      console.log("Loaded active timestamps:", customTimestamps);
+      console.log("Extension enabled state:", extensionIsEnabled);
     }
   });
 }
 
-// Load the settings when the content script is first injected
-loadSettings();
+// Load the active set when the script initializes
+loadActiveSet();
 
-// Listen for changes in Chrome storage
-chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'sync' && changes.youtubeSamplerKeys_settings) {
-    console.log("Detected change in settings from storage.");
-    const newSettings = changes.youtubeSamplerKeys_settings.newValue || {};
-    customTimestamps = newSettings.timestamps || {};
-    console.log("Timestamps updated:", customTimestamps);
+// --- Listen for changes in storage ---
+// Updates the active set AND enabled state if changed via the options page
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === 'sync' && changes[currentSetStorageKey]) {
+    console.log("Content Script: Detected change in active set/status. Reloading.");
+    const newSettings = changes[currentSetStorageKey].newValue; // Allow undefined
+    customTimestamps = newSettings?.timestamps || {};
+    // Update global enabled state, default true
+    extensionIsEnabled = (newSettings && typeof newSettings.isEnabled === 'boolean') ? newSettings.isEnabled : true;
+
+    console.log("Updated active timestamps:", customTimestamps);
+    console.log("Updated extension enabled state:", extensionIsEnabled);
   }
 });
 
-// --- Main KeyDown Listener ---
+// --- KeyDown Listener ---
 document.addEventListener('keydown', (event) => {
-  const key = event.key;
+    const key = event.key;
 
-  // --- Early Exit Conditions ---
-  if (event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) { return; }
-  const targetElement = event.target;
-  if (targetElement.tagName === 'INPUT' || targetElement.tagName === 'TEXTAREA' || targetElement.isContentEditable) { return; }
+    // --- Early Exit Conditions ---
+    if (event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) { return; }
+    const targetElement = event.target;
+    if (targetElement.tagName === 'INPUT' || targetElement.tagName === 'TEXTAREA' || targetElement.isContentEditable) { return; }
 
-  // --- Check if the key is a number key (0-9) ---
-  if (key >= '0' && key <= '9') {
-    const targetTime = customTimestamps[key];
-
-    // Proceed only if a valid timestamp is defined for this key
-    if (targetTime !== undefined && targetTime !== null && !isNaN(targetTime)) {
-      // console.log(`Key ${key} mapped to ${targetTime}s. Attempting jump and play.`); // Optional: less verbose log
-      const videoPlayer = document.querySelector('video.html5-main-video');
-
-      if (videoPlayer) {
-        // console.log(`Found video player. Setting time, preventing default, ensuring playback.`); // Optional: less verbose log
-        event.preventDefault();
-        event.stopPropagation();
-        videoPlayer.currentTime = parseFloat(targetTime);
-        videoPlayer.play();
-      } else {
-        console.warn("YouTube video player element ('video.html5-main-video') not found.");
-      }
+    // --- <<< Check if Extension is Globally Enabled >>> ---
+    if (!extensionIsEnabled) {
+        // If disabled, do nothing and let default YouTube behavior happen
+        // console.log("Sampler Keys disabled globally."); // Optional log
+        return;
     }
-  }
-}, true); // Use capture phase
+    // --- <<< End Enable/Disable Check >>> ---
 
-// Message listener removed from this version
+
+    // --- Process Number Keys ONLY if Enabled ---
+    if (key >= '0' && key <= '9') {
+        const targetTime = customTimestamps[key];
+
+        if (targetTime !== undefined && targetTime !== null && !isNaN(targetTime)) {
+            // --- If key is mapped AND extension is enabled, handle it ---
+            const videoPlayer = document.querySelector('video.html5-main-video');
+            if (videoPlayer) {
+                console.log(`Sampler Key ${key} pressed (enabled). Jumping to ${targetTime}s.`); // Log when active
+                event.preventDefault(); // Prevent default YouTube action
+                event.stopPropagation();
+                videoPlayer.currentTime = parseFloat(targetTime);
+                videoPlayer.play();
+            } else {
+                console.warn("Hotkey pressed, but video player not found.");
+            }
+        }
+        // If key is 0-9 but not mapped, we do nothing (allow default) even if enabled.
+    }
+}, true); // Use capture phase

@@ -1,0 +1,21 @@
+// manifest.json
+{
+  "manifest_version": 3,
+  "name": "YouTube Sampler Keys",
+  "version": "1.0",
+  "description": "Remaps number keys (1-0) to jump to custom timestamps in YouTube videos.",
+  "permissions": [
+    "storage" // Needed to save and load your custom timestamps
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/watch*"], // Run only on YouTube watch pages
+      "js": ["content.js"]
+    }
+  ],
+  "options_page": "options.html", // Specify the options page
+  "action": {
+    "default_title": "Configure YouTube Sampler Keys",
+    "default_popup": "options.html" // Or use a simpler popup that links to options
+  }
+}

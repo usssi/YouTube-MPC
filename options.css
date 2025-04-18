@@ -222,14 +222,12 @@ body {
     color: var(--pad-text);
 }
 
-/* Apply base text color based on cue state to direct children */
 .mpc-pad:not(.has-cue) > * {
     color: var(--pad-text);
 }
 .mpc-pad.has-cue > * {
      color: var(--pad-text-has-cue);
 }
-/* Apply base text color based on cue state to right column children */
 .mpc-pad:not(.has-cue) .pad-right-column > * {
     color: var(--pad-text);
 }
@@ -241,12 +239,12 @@ body {
 .pad-clear-button {
     background: none;
     border: none;
-    color: inherit; /* Inherit color by default */
+    color: inherit;
     font-size: 1.1em;
     line-height: 1;
     cursor: pointer;
     padding: 0 4px;
-    margin-right: 4px;
+    margin-right: 4px; /* Keep margin after X */
     user-select: none;
     flex-shrink: 0;
     align-self: stretch;
@@ -256,23 +254,20 @@ body {
     transition: color 0.15s ease, opacity 0.15s ease;
 }
 
-/* Active state: Pad has cue */
 .mpc-pad.has-cue .pad-clear-button {
-    color: var(--clear-button-color); /* Red color */
+    color: var(--clear-button-color);
 }
 .mpc-pad.has-cue .pad-clear-button:hover {
-    color: var(--clear-button-hover-color); /* Brighter red on hover */
+    color: var(--clear-button-hover-color);
     opacity: 1.0;
 }
 
-/* Inactive state: Pad does not have cue */
 .mpc-pad:not(.has-cue) .pad-clear-button:hover {
-    opacity: 0.7; /* Dim slightly on hover */
+    opacity: 0.7;
 }
 .mpc-pad:not(.has-cue) .pad-clear-button:active {
     opacity: 0.5;
 }
-/* Active state active press */
 .mpc-pad.has-cue .pad-clear-button:active {
     opacity: 0.5;
 }
@@ -294,7 +289,7 @@ body {
     -moz-appearance: textfield;
     height: 25px;
     margin-left: 0;
-    margin-right: 3px;
+    margin-right: 0; /* Removed right margin */
     min-width: 0;
     align-self: center;
 }
@@ -321,17 +316,16 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    margin-left: 4px;
+    margin-left: 2px; /* Reduced left margin */
     flex-shrink: 0;
     height: 100%;
-    width: 1.5em;
     box-sizing: border-box;
     padding: 1px 0;
 }
 
 .pad-right-column .seconds-suffix {
     font-size: 0.9em;
-    padding: 0;
+    padding: 0 2px;
     user-select: none;
     color: inherit;
     line-height: 1.1;
@@ -347,7 +341,7 @@ body {
     font-weight: bold;
     line-height: 1;
     cursor: pointer;
-    padding: 0;
+    padding: 0 2px;
     margin: 0;
     user-select: none;
     display: flex;
@@ -355,6 +349,7 @@ body {
     justify-content: center;
     width: 100%;
     flex-basis: 30%;
+    min-width: 1em;
 }
 
 .pad-right-column .pad-adjust:hover {

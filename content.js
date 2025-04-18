@@ -1,84 +1,105 @@
-// content.js (Checks Enable/Disable state from sync storage)
+// content.js (Bank Aware Loader - Uses chrome.storage.local - COMPLETE)
 
-console.log("YouTube Sampler Keys - Simple Jumper with Enable/Disable Check.");
+console.log("[Content_YT_Sampler] Script Injected. Bank Aware Loader (Using Local Storage).");
 
-const currentSetStorageKey = 'youtubeSampler_currentSet'; // Using sync storage
-let customTimestamps = {};
-let extensionIsEnabled = true; // Default to enabled
+const settingsStorageKey = 'youtubeSampler_currentSet'; // Key for storage (now local)
+let customTimestamps = {}; // Stores timestamps for the SELECTED bank
+let extensionIsEnabled = true; // Global enable state
+let loadedSelectedBank = 'A'; // Track which bank's data is loaded
 
-// --- Load the currently active set AND enabled state from storage ---
-function loadActiveSet() {
-  console.log("Content Script: Loading active set and status from storage...");
-  chrome.storage.sync.get([currentSetStorageKey], (result) => {
-    if (chrome.runtime.lastError) {
-      console.error("Error loading active set:", chrome.runtime.lastError);
-      customTimestamps = {};
-      extensionIsEnabled = true; // Default to enabled on error
-    } else {
-      const savedSettings = result[currentSetStorageKey]; // Allow undefined if never saved
-      customTimestamps = savedSettings?.timestamps || {};
-      // Set global enabled state, default to true if setting is missing entirely or isEnabled is not set
-      extensionIsEnabled = (savedSettings && typeof savedSettings.isEnabled === 'boolean') ? savedSettings.isEnabled : true;
+// --- Load settings, check structure, determine selected bank, load its timestamps from LOCAL storage ---
+function loadActiveBankData() {
+    console.log("[Content_YT_Sampler] === loadActiveBankData START (local) ===");
+    // *** CHANGED TO local ***
+    chrome.storage.local.get([settingsStorageKey], (result) => {
+        let useTimestamps = {};
+        let useIsEnabled = true;
+        let useSelectedBank = 'A';
 
-      console.log("Loaded active timestamps:", customTimestamps);
-      console.log("Extension enabled state:", extensionIsEnabled);
-    }
-  });
+        if (chrome.runtime.lastError) {
+            console.error("[Content_YT_Sampler] loadActiveBankData: Error loading settings:", chrome.runtime.lastError);
+            // Use defaults on error
+        } else {
+            const loadedSettings = result[settingsStorageKey];
+            console.log("[Content_YT_Sampler] loadActiveBankData: Raw settings loaded:", loadedSettings);
+
+            // --- Structure Check ---
+            if (loadedSettings && typeof loadedSettings.banks === 'object' && typeof loadedSettings.selectedBank === 'string') {
+                 console.log("[Content_YT_Sampler] loadActiveBankData: Detected NEW structure.");
+                 useIsEnabled = (typeof loadedSettings.isEnabled === 'boolean') ? loadedSettings.isEnabled : true;
+                 useSelectedBank = loadedSettings.selectedBank || 'A';
+                 const banksData = loadedSettings.banks || {};
+                 const selectedBankData = banksData[useSelectedBank] || {}; // Use the loaded selected bank
+                 useTimestamps = selectedBankData.timestamps || {};
+            } else {
+                 console.warn("[Content_YT_Sampler] loadActiveBankData: Detected OLD or INVALID structure. Using defaults.");
+                 if(loadedSettings) console.log("(Received data was:", loadedSettings, ")"); // Log bad data
+                 // Keep default values: useIsEnabled=true, useSelectedBank='A', useTimestamps={}
+            }
+            // --- End Structure Check ---
+        }
+
+        // Update module-level variables
+        extensionIsEnabled = useIsEnabled;
+        loadedSelectedBank = useSelectedBank;
+        customTimestamps = useTimestamps;
+
+        console.log(`[Content_YT_Sampler] loadActiveBankData: === FINAL STATE ===> Enabled: ${extensionIsEnabled}, Selected Bank: ${loadedSelectedBank}, Timestamps:`, customTimestamps);
+    });
 }
 
-// Load the active set when the script initializes
-loadActiveSet();
+// Load initially
+loadActiveBankData();
 
-// --- Listen for changes in storage ---
-// Updates the active set AND enabled state if changed via the options page
+// --- Listen for changes in LOCAL storage ---
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === 'sync' && changes[currentSetStorageKey]) {
-    console.log("Content Script: Detected change in active set/status. Reloading.");
-    const newSettings = changes[currentSetStorageKey].newValue; // Allow undefined
-    customTimestamps = newSettings?.timestamps || {};
-    // Update global enabled state, default true
-    extensionIsEnabled = (newSettings && typeof newSettings.isEnabled === 'boolean') ? newSettings.isEnabled : true;
-
-    console.log("Updated active timestamps:", customTimestamps);
-    console.log("Updated extension enabled state:", extensionIsEnabled);
-  }
+    console.log(`[Content_YT_Sampler] Storage onChanged detected. Area: ${areaName}`);
+    // *** CHANGED TO local ***
+    if (areaName === 'local' && changes[settingsStorageKey]) {
+        console.log("[Content_YT_Sampler] Detected change in our settings key (local). Reloading active bank data...");
+        console.log("[Content_YT_Sampler] Change details:", changes[settingsStorageKey]);
+        loadActiveBankData(); // Reload ALL data based on the change
+    }
 });
 
 // --- KeyDown Listener ---
 document.addEventListener('keydown', (event) => {
     const key = event.key;
+    // Use the module-level 'loadedSelectedBank' for logging
+    // console.log(`[Content_YT_Sampler] Keydown: Key='${key}', Enabled=${extensionIsEnabled}, Current Bank Context='${loadedSelectedBank}'`); // Less verbose log
 
-    // --- Early Exit Conditions ---
+    // Early exit conditions
     if (event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) { return; }
     const targetElement = event.target;
     if (targetElement.tagName === 'INPUT' || targetElement.tagName === 'TEXTAREA' || targetElement.isContentEditable) { return; }
 
-    // --- <<< Check if Extension is Globally Enabled >>> ---
-    if (!extensionIsEnabled) {
-        // If disabled, do nothing and let default YouTube behavior happen
-        // console.log("Sampler Keys disabled globally."); // Optional log
-        return;
-    }
-    // --- <<< End Enable/Disable Check >>> ---
+    // Check if Extension is Globally Enabled
+    if (!extensionIsEnabled) { return; }
 
-
-    // --- Process Number Keys ONLY if Enabled ---
+    // Process Number Keys ONLY if Enabled
     if (key >= '0' && key <= '9') {
+        // Use the timestamps loaded for the currently selected bank
         const targetTime = customTimestamps[key];
+        // console.log(`[Content_YT_Sampler] Timestamp lookup for key '${key}' in bank '${loadedSelectedBank}':`, targetTime); // Less verbose log
 
         if (targetTime !== undefined && targetTime !== null && !isNaN(targetTime)) {
-            // --- If key is mapped AND extension is enabled, handle it ---
             const videoPlayer = document.querySelector('video.html5-main-video');
             if (videoPlayer) {
-                console.log(`Sampler Key ${key} pressed (enabled). Jumping to ${targetTime}s.`); // Log when active
-                event.preventDefault(); // Prevent default YouTube action
-                event.stopPropagation();
-                videoPlayer.currentTime = parseFloat(targetTime);
-                videoPlayer.play();
+                console.log(`[Content_YT_Sampler] Action: Key ${key} (Bank ${loadedSelectedBank}) -> ${targetTime}s`); // More informative log
+                try {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    videoPlayer.currentTime = parseFloat(targetTime);
+                    videoPlayer.play();
+                    // console.log(`[Content_YT_Sampler] Action complete for key ${key}.`); // Less verbose log
+                } catch (e) {
+                     console.error("[Content_YT_Sampler] Error executing video action:", e);
+                }
             } else {
-                console.warn("Hotkey pressed, but video player not found.");
+                console.warn("[Content_YT_Sampler] Hotkey pressed, valid timestamp, but video player ('video.html5-main-video') not found!");
             }
+        } else {
+            // console.log(`[Content_YT_Sampler] No valid timestamp mapped for key '${key}' in bank '${loadedSelectedBank}'.`); // Less verbose log
         }
-        // If key is 0-9 but not mapped, we do nothing (allow default) even if enabled.
     }
 }, true); // Use capture phase

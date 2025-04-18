@@ -27,6 +27,8 @@
     --status-saved: #66bb6a;
     --status-error: #ef5350;
     --status-info: #42a5f5;
+    --clear-button-color: #ff8a80;
+    --clear-button-hover-color: #ff5252;
 
     --base-font-size: 13px;
     --container-width: 520px;
@@ -199,7 +201,6 @@ body {
     font-weight: bold;
     font-family: 'Consolas', 'Monaco', monospace;
     display: flex;
-    justify-content: space-between;
     align-items: center;
     box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
     transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease, opacity 0.1s ease;
@@ -220,16 +221,62 @@ body {
     border-color: var(--pad-border);
     color: var(--pad-text);
 }
-.mpc-pad:not(.has-cue) .pad-input,
-.mpc-pad:not(.has-cue) .seconds-suffix,
-.mpc-pad:not(.has-cue) .pad-adjust {
+
+/* Apply base text color based on cue state to direct children */
+.mpc-pad:not(.has-cue) > * {
     color: var(--pad-text);
 }
-.mpc-pad.has-cue .pad-input,
-.mpc-pad.has-cue .seconds-suffix,
-.mpc-pad.has-cue .pad-adjust {
+.mpc-pad.has-cue > * {
      color: var(--pad-text-has-cue);
 }
+/* Apply base text color based on cue state to right column children */
+.mpc-pad:not(.has-cue) .pad-right-column > * {
+    color: var(--pad-text);
+}
+.mpc-pad.has-cue .pad-right-column > * {
+    color: var(--pad-text-has-cue);
+}
+
+
+.pad-clear-button {
+    background: none;
+    border: none;
+    color: inherit; /* Inherit color by default */
+    font-size: 1.1em;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+    margin-right: 4px;
+    user-select: none;
+    flex-shrink: 0;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+/* Active state: Pad has cue */
+.mpc-pad.has-cue .pad-clear-button {
+    color: var(--clear-button-color); /* Red color */
+}
+.mpc-pad.has-cue .pad-clear-button:hover {
+    color: var(--clear-button-hover-color); /* Brighter red on hover */
+    opacity: 1.0;
+}
+
+/* Inactive state: Pad does not have cue */
+.mpc-pad:not(.has-cue) .pad-clear-button:hover {
+    opacity: 0.7; /* Dim slightly on hover */
+}
+.mpc-pad:not(.has-cue) .pad-clear-button:active {
+    opacity: 0.5;
+}
+/* Active state active press */
+.mpc-pad.has-cue .pad-clear-button:active {
+    opacity: 0.5;
+}
+
 
 .pad-input {
     flex-grow: 1;
@@ -246,9 +293,10 @@ body {
     outline: none;
     -moz-appearance: textfield;
     height: 25px;
-    margin-left: 3px;
+    margin-left: 0;
     margin-right: 3px;
     min-width: 0;
+    align-self: center;
 }
 .pad-input::-webkit-outer-spin-button,
 .pad-input::-webkit-inner-spin-button {
@@ -268,57 +316,54 @@ body {
     color: var(--pad-text-has-cue);
 }
 
-.seconds-suffix {
-    font-size: 0.9em;
-    padding-left: 1px;
-    user-select: none;
-    color: inherit;
-    flex-grow: 0;
-    flex-shrink: 0;
-}
-
-.pad-adjust-buttons {
+.pad-right-column {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: space-around;
-    margin-right: 4px;
+    justify-content: space-between;
+    margin-left: 4px;
+    flex-shrink: 0;
     height: 100%;
-    flex-grow: 0;
+    width: 1.5em;
+    box-sizing: border-box;
+    padding: 1px 0;
+}
+
+.pad-right-column .seconds-suffix {
+    font-size: 0.9em;
+    padding: 0;
+    user-select: none;
+    color: inherit;
+    line-height: 1.1;
+    text-align: center;
     flex-shrink: 0;
 }
 
-.pad-adjust {
+.pad-right-column .pad-adjust {
     background: none;
     border: none;
     color: inherit;
     font-size: 1.1em;
     font-weight: bold;
-    line-height: 0.9;
+    line-height: 1;
     cursor: pointer;
-    padding: 0 2px;
+    padding: 0;
     margin: 0;
     user-select: none;
     display: flex;
     align-items: center;
-    height: 33%;
-    box-sizing: border-box;
+    justify-content: center;
+    width: 100%;
+    flex-basis: 30%;
 }
-.pad-adjust.clear {
-    font-size: 0.9em;
-    font-weight: normal;
-    color: #ff8a80; /* Light red for clear */
-}
-.pad-adjust:hover {
+
+.pad-right-column .pad-adjust:hover {
     opacity: 0.7;
 }
-.pad-adjust:active {
+.pad-right-column .pad-adjust:active {
     opacity: 0.5;
 }
-.pad-adjust.clear:hover {
-    color: #ff5252; /* Brighter red on hover */
-    opacity: 1.0;
-}
+
 
 .stop-button-container {
     display: flex;

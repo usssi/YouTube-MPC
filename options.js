@@ -217,11 +217,12 @@ function handlePadInputChange(event) {
 
 function handlePadAdjustClick(event) {
     const button = event.target.closest('.pad-adjust');
-    if (!button || button.classList.contains('clear')) return;
+    if (!button) return;
 
     const key = button.dataset.key;
     const delta = parseFloat(button.dataset.delta);
-    const inputElement = document.querySelector(`.pad-input[data-key="${key}"]`);
+    const padElement = button.closest('.mpc-pad');
+    const inputElement = padElement?.querySelector(`.pad-input[data-key="${key}"]`);
 
     if (!inputElement || isNaN(delta)) return;
 
@@ -238,11 +239,13 @@ function handlePadAdjustClick(event) {
 }
 
 function handlePadClearClick(event) {
-    const button = event.target.closest('.pad-adjust.clear');
+    const button = event.target.closest('.pad-clear-button');
     if (!button) return;
 
     const key = button.dataset.key;
-    const inputElement = document.querySelector(`.pad-input[data-key="${key}"]`);
+    const padElement = button.closest('.mpc-pad');
+    const inputElement = padElement?.querySelector(`.pad-input[data-key="${key}"]`);
+
 
     if (!inputElement) return;
 
@@ -270,13 +273,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         padArea.addEventListener('click', (event) => {
+            const clearButton = event.target.closest('.pad-clear-button');
             const adjustButton = event.target.closest('.pad-adjust');
-            if (adjustButton) {
-                if (adjustButton.classList.contains('clear')) {
-                    handlePadClearClick(event);
-                } else if (adjustButton.classList.contains('up') || adjustButton.classList.contains('down')) {
-                    handlePadAdjustClick(event);
-                }
+
+            if (clearButton) {
+                handlePadClearClick(event);
+            } else if (adjustButton) {
+                 handlePadAdjustClick(event);
             }
         });
     }

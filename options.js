@@ -1,307 +1,283 @@
-// options.js (Bank Switching - Uses chrome.storage.local - COMPLETE)
-
-const settingsStorageKey = 'youtubeSampler_currentSet'; // Key for storage (now local)
+const settingsStorageKey = 'youtubeSampler_currentSet';
 const statusElement = document.getElementById('status');
-const enableSwitchElement = document.getElementById('enable-switch');
-const bankRadioButtons = document.querySelectorAll('input[name="bank"]');
+const enableButtonElement = document.getElementById('enable-button');
+const bankButtons = document.querySelectorAll('.bank-button');
+const padElements = document.querySelectorAll('.pad-grid .mpc-pad');
+const displayBankElement = document.getElementById('display-bank');
+const displayStatusElement = document.getElementById('display-status');
 
-let isInitialized = false; // Initialization Flag
-let currentSelectedBank = 'A'; // Tracks the currently selected bank in the UI
+let isInitialized = false;
+let currentSelectedBank = 'A';
 
-console.log("Options script loaded (Using Local Storage).");
-
-// --- Helper function to get default structure for a single bank ---
 function getDefaultBankData() {
     const timestamps = {};
-    for (let i = 0; i <= 9; i++) { timestamps[i.toString()] = null; }
-    return { timestamps: timestamps, mode: 'trigger' }; // Include default mode
+    for (let i = 1; i <= 9; i++) { timestamps[i.toString()] = null; }
+    return { timestamps: timestamps, mode: 'trigger' };
 }
 
-// --- Helper function to get default structure for ALL settings ---
 function getDefaultSettings() {
-    const defaultSettings = {
+    return {
         isEnabled: true,
         selectedBank: 'A',
         banks: {
-            'A': getDefaultBankData(),
-            'B': getDefaultBankData(),
-            'C': getDefaultBankData(),
-            'D': getDefaultBankData()
+            'A': getDefaultBankData(), 'B': getDefaultBankData(),
+            'C': getDefaultBankData(), 'D': getDefaultBankData()
         }
     };
-    return defaultSettings;
 }
 
+function updateUIFromSettings(settings) {
+    const selectedBank = settings?.selectedBank || 'A';
+    const currentBankData = settings?.banks?.[selectedBank] || getDefaultBankData();
+    const isEnabled = (typeof settings?.isEnabled === 'boolean') ? settings.isEnabled : true;
 
-// --- Helper function to read current UI state for Timestamps & Mode ---
-function getCurrentUITimestampModeData() {
-    const timestamps = {};
-    for (let i = 0; i <= 9; i++) {
-        const inputElement = document.getElementById(`key${i}`);
-        if (inputElement) {
-             const value = inputElement.value;
-             if (value !== '' && !isNaN(parseFloat(value)) && parseFloat(value) >= 0) {
-                 timestamps[i.toString()] = parseFloat(value);
-             } else {
-                 timestamps[i.toString()] = null;
-             }
-        } else {
-             console.warn(`Input element key${i} not found when reading UI.`);
-             timestamps[i.toString()] = null;
+    if (enableButtonElement) {
+        enableButtonElement.textContent = isEnabled ? 'ON' : 'OFF';
+        enableButtonElement.classList.toggle('enabled-state', isEnabled);
+        enableButtonElement.classList.toggle('disabled-state', !isEnabled);
+    }
+    if (displayStatusElement) {
+        displayStatusElement.textContent = isEnabled ? 'ON' : 'OFF';
+    }
+    if (displayBankElement) displayBankElement.textContent = selectedBank;
+
+    bankButtons.forEach(btn => {
+        btn.classList.toggle('active-bank', btn.dataset.bank === selectedBank);
+    });
+
+    const timestampsData = currentBankData.timestamps || {};
+    padElements.forEach(padDiv => {
+        const key = padDiv.dataset.key;
+        const inputElement = padDiv.querySelector('.pad-input');
+
+        if (key !== undefined && inputElement) {
+            const time = timestampsData[key];
+            const hasCue = (time !== null && time !== undefined && !isNaN(time));
+
+            inputElement.value = hasCue ? parseFloat(time).toFixed(2) : '';
+            padDiv.classList.toggle('has-cue', hasCue);
         }
-    }
-
-    let selectedMode = 'trigger';
-    const modeChecked = document.querySelector('input[name="mode"]:checked');
-    if (modeChecked) {
-        selectedMode = modeChecked.value;
-    }
-    return { timestamps: timestamps, mode: selectedMode };
+    });
 }
 
-// --- Helper function to update UI (Inputs and Mode radio) from specific bank data ---
-function updateUIInputsFromBankData(bankData) {
-    const timestampsData = bankData?.timestamps || {};
-    const modeData = bankData?.mode || 'trigger';
-    console.log("Updating UI inputs from bank data:", bankData);
+function saveSettingsToStorage(specificUpdate = null) {
+    if (!isInitialized) { return; }
 
-    // Update timestamp inputs
-    for (let i = 0; i <= 9; i++) {
-        const inputElement = document.getElementById(`key${i}`);
-        if (inputElement) {
-            const savedTime = timestampsData[i.toString()];
-            // Ensure null/undefined results in empty string
-            inputElement.value = (savedTime !== undefined && savedTime !== null) ? savedTime : '';
-        }
-    }
-    // Update mode radio button
-    const modeRadioButton = document.getElementById(`mode-${modeData}`);
-    if (modeRadioButton) {
-        modeRadioButton.checked = true;
-    } else {
-        // Fallback if mode value is invalid, check 'trigger'
-        const triggerRadio = document.getElementById('mode-trigger');
-        if(triggerRadio) triggerRadio.checked = true;
-    }
-}
+    const currentIsEnabled = enableButtonElement?.classList.contains('enabled-state') ?? true;
 
-// --- MAIN SAVE FUNCTION: Reads storage, updates current bank, saves all ---
-function saveSettingsToStorage() {
-    if (!isInitialized) {
-        console.log("Skipping save: Not initialized yet.");
-        return;
-    }
-    console.log(`saveSettingsToStorage called. Target bank: ${currentSelectedBank}`);
-
-    // 1. Get current global enable state directly from switch
-    const currentIsEnabled = enableSwitchElement ? enableSwitchElement.checked : true;
-    // 2. Get current timestamp/mode data directly from inputs/radios
-    const currentBankUIData = getCurrentUITimestampModeData();
-
-    // 3. Read the LATEST full settings object from LOCAL storage
-    console.log("[Options Save] Reading current settings from LOCAL storage before write...");
-    chrome.storage.local.get([settingsStorageKey], (result) => { // *** Using local ***
-        if (chrome.runtime.lastError) {
-            console.error("[Options Save] Error: Failed to read settings before write:", chrome.runtime.lastError);
-            statusElement.textContent = 'Error preparing save!';
-            statusElement.style.color = 'red';
-            return;
-        }
-        // Start with loaded data or a fresh default structure
+    chrome.storage.local.get([settingsStorageKey], (result) => {
+        if (chrome.runtime.lastError) { console.error("[Options Save] Read Error:", chrome.runtime.lastError); return; }
         const settingsToSave = result[settingsStorageKey] || getDefaultSettings();
-        console.log("[Options Save] Read settings from storage:", settingsToSave);
 
+        settingsToSave.banks = settingsToSave.banks || {};
+        ['A', 'B', 'C', 'D'].forEach(bankId => {
+            settingsToSave.banks[bankId] = settingsToSave.banks[bankId] || getDefaultBankData();
+        });
+        settingsToSave.selectedBank = settingsToSave.selectedBank || 'A';
+        settingsToSave.isEnabled = (typeof settingsToSave.isEnabled === 'boolean') ? settingsToSave.isEnabled : true;
 
-        // --- Ensure structure is the new one ---
-        settingsToSave.banks = settingsToSave.banks || {}; // Ensure banks object exists
-        settingsToSave.banks[currentSelectedBank] = settingsToSave.banks[currentSelectedBank] || getDefaultBankData(); // Ensure object for current bank exists
-        settingsToSave.selectedBank = settingsToSave.selectedBank || 'A'; // Ensure selectedBank exists
-        settingsToSave.isEnabled = (typeof settingsToSave.isEnabled === 'boolean') ? settingsToSave.isEnabled : true; // Ensure isEnabled exists
-        // ---
+        if (specificUpdate && specificUpdate.key !== undefined && specificUpdate.key !== null && specificUpdate.key !== '0') {
+             settingsToSave.banks[currentSelectedBank].timestamps = settingsToSave.banks[currentSelectedBank].timestamps || {};
+             let finalValue = null;
+             if(specificUpdate.value !== null && specificUpdate.value !== '' && !isNaN(parseFloat(specificUpdate.value)) && parseFloat(specificUpdate.value) >= 0){
+                 finalValue = parseFloat(parseFloat(specificUpdate.value).toFixed(2));
+             } else {
+                 finalValue = null;
+             }
+             settingsToSave.banks[currentSelectedBank].timestamps[specificUpdate.key] = finalValue;
+        }
 
-        // 4. Update ONLY the data for the currently selected bank with data from UI inputs
-        console.log(`[Options Save] Updating bank '${currentSelectedBank}' data with UI data:`, currentBankUIData);
-        settingsToSave.banks[currentSelectedBank] = currentBankUIData; // Replace timestamps/mode for this bank
-
-        // 5. Update global settings
-        console.log(`[Options Save] Setting global 'isEnabled' to: ${currentIsEnabled}`);
         settingsToSave.isEnabled = currentIsEnabled;
-        console.log(`[Options Save] Setting global 'selectedBank' to: ${currentSelectedBank}`);
-        settingsToSave.selectedBank = currentSelectedBank; // Record which bank is selected
+        settingsToSave.selectedBank = currentSelectedBank;
 
-        console.log("[Options Save Check] Final object being saved:", JSON.stringify(settingsToSave, null, 2));
-
-        // 6. Save the entire modified object back to LOCAL storage
-        chrome.storage.local.set({ [settingsStorageKey]: settingsToSave }, () => { // *** Using local ***
+        chrome.storage.local.set({ [settingsStorageKey]: settingsToSave }, () => {
              if (chrome.runtime.lastError) {
-                console.error("[Options Save] SAVE FAILED:", chrome.runtime.lastError);
-                statusElement.textContent = 'Error saving settings!';
-                statusElement.style.color = 'red';
-            } else {
-                console.log("[Options Save] Save successful.");
-                statusElement.textContent = 'Saved.';
-                statusElement.style.color = 'green';
-                statusElement.style.opacity = '1';
-                setTimeout(() => {
-                    if (statusElement.textContent === 'Saved.') {
-                        statusElement.style.opacity = '0';
-                    }
-                }, 1500);
-            }
+                 console.error("[Options Save] SAVE FAILED:", chrome.runtime.lastError);
+                 statusElement.textContent = 'Error saving settings!'; statusElement.style.color = 'red';
+             } else {
+                 updateUIFromSettings(settingsToSave);
+
+                 if(isInitialized){
+                     statusElement.textContent = 'Saved.'; statusElement.style.color = 'green';
+                     statusElement.style.opacity = '1';
+                     setTimeout(() => { if (statusElement.textContent === 'Saved.') statusElement.style.opacity = '0'; }, 1500);
+                 }
+             }
         });
     });
 }
 
-
-// --- Restore Options from Storage on Load ---
 function restoreOptions() {
-    console.log("Restoring options from LOCAL storage...");
-    isInitialized = false; // Block saves during restore
-    // *** CHANGED TO local ***
+    isInitialized = false;
     chrome.storage.local.get([settingsStorageKey], (result) => {
-        let settingsToUse; // This will hold the settings object we decide to use
-
+        let settingsToUse;
         if (chrome.runtime.lastError) {
            console.error("Error loading settings:", chrome.runtime.lastError);
            statusElement.textContent = 'Error loading settings. Using defaults.';
-           statusElement.style.color = 'red';
-           settingsToUse = getDefaultSettings(); // Use fresh defaults on error
+           settingsToUse = getDefaultSettings();
         } else {
            const loadedSettings = result[settingsStorageKey];
-           console.log("Loaded settings from storage:", loadedSettings);
 
-           // --- Structure Check ---
            if (loadedSettings && typeof loadedSettings.banks === 'object' && typeof loadedSettings.selectedBank === 'string') {
-               console.log("Detected NEW settings structure. Using loaded data.");
-               settingsToUse = loadedSettings;
-               // Ensure defaults for missing parts just in case
-               settingsToUse.banks = settingsToUse.banks || {};
-               settingsToUse.isEnabled = (typeof settingsToUse.isEnabled === 'boolean') ? settingsToUse.isEnabled : true;
-               settingsToUse.selectedBank = settingsToUse.selectedBank || 'A';
+                settingsToUse = loadedSettings;
+                settingsToUse.banks = settingsToUse.banks || {};
+                ['A', 'B', 'C', 'D'].forEach(bankId => {
+                    if (!settingsToUse.banks[bankId] || !settingsToUse.banks[bankId].timestamps) {
+                        settingsToUse.banks[bankId] = getDefaultBankData();
+                    } else {
+                        delete settingsToUse.banks[bankId].timestamps['0'];
+                    }
+                });
+                settingsToUse.isEnabled = (typeof settingsToUse.isEnabled === 'boolean') ? settingsToUse.isEnabled : true;
+                settingsToUse.selectedBank = settingsToUse.selectedBank || 'A';
            } else {
-               console.warn("Detected OLD or INVALID settings structure. Resetting to default structure.");
-               statusElement.textContent = 'Old/missing settings format. Initializing fresh state.';
-               statusElement.style.color = 'orange';
-               settingsToUse = getDefaultSettings(); // Use fresh defaults if structure is wrong
-
-               // IMPORTANT: Save the new default structure immediately to LOCAL storage
-               console.log("Saving new default structure back to LOCAL storage...");
-                // *** CHANGED TO local ***
-               chrome.storage.local.set({ [settingsStorageKey]: settingsToUse }, () => {
-                   if (chrome.runtime.lastError) console.error("Failed to save initial default structure:", chrome.runtime.lastError);
-                   else console.log("Successfully saved initial default structure.");
-                   // Clear the warning message after a delay
-                    setTimeout(() => { if(statusElement.textContent.startsWith('Old/missing')) statusElement.textContent = ''; }, 3000);
-               });
+                statusElement.textContent = 'Initializing default settings...'; statusElement.style.color = 'orange';
+                settingsToUse = getDefaultSettings();
+                chrome.storage.local.set({ [settingsStorageKey]: settingsToUse }, () => {
+                    if (chrome.runtime.lastError) console.error("Failed to save initial default structure:", chrome.runtime.lastError);
+                    else console.log("Successfully saved initial default structure.");
+                    setTimeout(() => { if(statusElement.textContent.startsWith('Initializing')) statusElement.textContent = ''; }, 2000);
+                });
            }
-           // --- End Structure Check ---
         }
-
-        // Now proceed using settingsToUse
         currentSelectedBank = settingsToUse.selectedBank;
-        console.log(`Using selected bank: ${currentSelectedBank}`);
-
-        // Update the UI based on settingsToUse
-        // 1. Set Enable Switch
-        if (enableSwitchElement) {
-            enableSwitchElement.checked = settingsToUse.isEnabled;
-        }
-        // 2. Set Bank Radio Button
-        const bankRadioButton = document.getElementById(`bank-${currentSelectedBank.toLowerCase()}`);
-        if (bankRadioButton) {
-            bankRadioButton.checked = true;
-            console.log(`Set radio button for bank ${currentSelectedBank} to checked.`);
-        } else {
-            console.warn(`Could not find radio button for bank ${currentSelectedBank}. Defaulting to A.`);
-             document.getElementById('bank-a')?.setAttribute('checked', true); // Fallback
-        }
-        // 3. Update Timestamp/Mode Inputs using data for the selected bank
-        const bankDataForUI = settingsToUse.banks[currentSelectedBank] || getDefaultBankData();
-        updateUIInputsFromBankData(bankDataForUI);
-
-        // Allow saving now
+        updateUIFromSettings(settingsToUse);
         isInitialized = true;
-        console.log("Initialization complete. Saving enabled.");
      });
 }
 
-// --- Handle Bank Selection Change ---
 function handleBankChange(event) {
-    const newBank = event.target.value;
-    if (!isInitialized || newBank === currentSelectedBank) {
-        console.log(`Bank change to ${newBank} ignored (not initialized or same bank).`);
-        return;
-    }
+    const newBank = event.currentTarget.dataset.bank;
+    if (!isInitialized || !newBank || newBank === currentSelectedBank) { return; }
 
-    console.log(`[Options Bank Change] UI radio button changed to: ${newBank}`);
-    currentSelectedBank = newBank; // Update the internally tracked selected bank
-    console.log(`[Options Bank Change] currentSelectedBank variable is now: ${currentSelectedBank}.`);
+    currentSelectedBank = newBank;
 
-    // Read storage to get the data for the new bank and update UI
-    console.log(`[Options Bank Change] Reading LOCAL storage to update UI for bank ${currentSelectedBank}...`);
-     // *** CHANGED TO local ***
     chrome.storage.local.get([settingsStorageKey], (result) => {
-        let currentBankData = {};
-         if (chrome.runtime.lastError) {
-            console.error("[Options Bank Change] Error loading settings on bank change:", chrome.runtime.lastError);
-            statusElement.textContent = 'Error loading bank data!';
-            statusElement.style.color = 'red';
-            currentBankData = getDefaultBankData(); // Use default empty data on error
-         } else {
-            const loadedSettings = result[settingsStorageKey] || { banks: {} };
-            loadedSettings.banks = loadedSettings.banks || {};
-            currentBankData = loadedSettings.banks[currentSelectedBank] || getDefaultBankData();
-            console.log(`[Options Bank Change] Loaded data for bank ${currentSelectedBank}:`, currentBankData);
-         }
-         // Update the number/mode inputs to reflect the newly selected bank's data
-         updateUIInputsFromBankData(currentBankData);
-
-         // IMPORTANT: Also save the change in *which bank is selected* back to storage
-         console.log(`[Options Bank Change] Triggering save to persist selected bank ${currentSelectedBank}...`);
-         saveSettingsToStorage(); // This will save using local storage
+        let settings = result[settingsStorageKey] || getDefaultSettings();
+        settings.selectedBank = newBank;
+        updateUIFromSettings(settings);
+        saveSettingsToStorage();
     });
 }
 
-// --- Button: Clear Selected Bank Timestamps ---
 function handleClearAll() {
     if (!isInitialized) return;
-    console.log(`Clear All clicked for bank: ${currentSelectedBank}`);
-    if (confirm(`Are you sure you want to clear timestamps for Bank ${currentSelectedBank}?`)) {
-        // Update UI with empty timestamps (using default bank data)
-        updateUIInputsFromBankData(getDefaultBankData());
-        // Call save - this reads storage, merges the cleared data for current bank, and saves all
-        saveSettingsToStorage(); // This will save using local storage
-        statusElement.textContent = `Timestamps for Bank ${currentSelectedBank} cleared.`;
-        statusElement.style.color = 'blue';
-        setTimeout(() => { statusElement.textContent = ''; }, 2000);
+
+    if (confirm(`Are you sure you want to clear all timestamps for Bank ${currentSelectedBank}?`)) {
+         chrome.storage.local.get([settingsStorageKey], (result) => {
+             if (chrome.runtime.lastError) { console.error("ClearAll Error: Get failed", chrome.runtime.lastError); return; }
+             const settingsToSave = result[settingsStorageKey] || getDefaultSettings();
+             settingsToSave.banks = settingsToSave.banks || {};
+             settingsToSave.banks[currentSelectedBank] = getDefaultBankData();
+             settingsToSave.selectedBank = currentSelectedBank;
+             settingsToSave.isEnabled = enableButtonElement?.classList.contains('enabled-state') ?? true;
+
+             chrome.storage.local.set({ [settingsStorageKey]: settingsToSave }, () => {
+                 if (chrome.runtime.lastError) {
+                     console.error("ClearAll Error: Set failed", chrome.runtime.lastError);
+                     statusElement.textContent = `Error clearing Bank ${currentSelectedBank}.`; statusElement.style.color = 'red';
+                 } else {
+                      statusElement.textContent = `Timestamps for Bank ${currentSelectedBank} cleared.`;
+                      statusElement.style.color = 'blue';
+                      setTimeout(() => { statusElement.textContent = ''; }, 2000);
+                      updateUIFromSettings(settingsToSave);
+                 }
+            });
+        });
     }
 }
 
+function handleEnableToggle() {
+    if (!isInitialized) return;
+    const currentIsEnabled = enableButtonElement.classList.contains('enabled-state');
+    const newState = !currentIsEnabled;
 
-// --- Setup Listeners ---
+    enableButtonElement.textContent = newState ? 'ON' : 'OFF';
+    enableButtonElement.classList.toggle('enabled-state', newState);
+    enableButtonElement.classList.toggle('disabled-state', !newState);
+    if (displayStatusElement) displayStatusElement.textContent = newState ? 'ON' : 'OFF';
+
+    saveSettingsToStorage();
+}
+
+function handlePadInputChange(event) {
+    const inputElement = event.target;
+    const key = inputElement.dataset.key;
+    let value = inputElement.value;
+
+    if (!key || key === '0') return;
+
+    if (value !== '' && (isNaN(parseFloat(value)) || parseFloat(value) < 0)) {
+        console.warn(`Invalid input for Pad ${key}: ${value}. Clearing cue.`);
+        value = null;
+    }
+
+    saveSettingsToStorage({ key: key, value: value });
+}
+
+function handlePadAdjustClick(event) {
+    const button = event.target.closest('.pad-adjust');
+    if (!button || button.classList.contains('clear')) return;
+
+    const key = button.dataset.key;
+    const delta = parseFloat(button.dataset.delta);
+    const inputElement = document.querySelector(`.pad-input[data-key="${key}"]`);
+
+    if (!inputElement || isNaN(delta)) return;
+
+    let currentValue = parseFloat(inputElement.value);
+    if (isNaN(currentValue)) {
+        currentValue = 0;
+    }
+
+    let newValue = Math.max(0, currentValue + delta);
+    newValue = parseFloat(newValue.toFixed(2));
+
+    inputElement.value = newValue.toFixed(2);
+    saveSettingsToStorage({ key: key, value: newValue });
+}
+
+function handlePadClearClick(event) {
+    const button = event.target.closest('.pad-adjust.clear');
+    if (!button) return;
+
+    const key = button.dataset.key;
+    const inputElement = document.querySelector(`.pad-input[data-key="${key}"]`);
+
+    if (!inputElement) return;
+
+    inputElement.value = '';
+    saveSettingsToStorage({ key: key, value: null });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM Loaded. Setting up listeners (Using Local Storage).");
-    restoreOptions(); // Load the last active set & bank
 
-    // Attach listeners to buttons
+    restoreOptions();
+
     document.getElementById('clear-all')?.addEventListener('click', handleClearAll);
+    enableButtonElement?.addEventListener('click', handleEnableToggle);
 
-    // Attach listeners to inputs/switch to trigger save
-    const inputsToSave = document.querySelectorAll('input[type="number"], #enable-switch');
-    inputsToSave.forEach(input => {
-        const eventType = (input.type === 'checkbox') ? 'change' : 'input';
-        input.addEventListener(eventType, saveSettingsToStorage); // Saves the whole settings object
-    });
-     // Attach listeners to mode radios (if they become visible/used again)
-     document.querySelectorAll('input[name="mode"]').forEach(radio => {
-         radio.addEventListener('change', saveSettingsToStorage);
-     });
-
-    // Attach listeners to BANK radio buttons
-    console.log("Attaching listeners to bank radio buttons...");
-    bankRadioButtons.forEach(radio => {
-        radio.addEventListener('change', handleBankChange);
+    bankButtons.forEach(button => {
+        button.addEventListener('click', handleBankChange);
     });
 
-    console.log("Event listeners setup complete.");
+    const padArea = document.querySelector('.pad-area');
+    if (padArea) {
+        padArea.addEventListener('change', (event) => {
+            if (event.target.matches('.pad-input')) {
+                handlePadInputChange(event);
+            }
+        });
+
+        padArea.addEventListener('click', (event) => {
+            const adjustButton = event.target.closest('.pad-adjust');
+            if (adjustButton) {
+                if (adjustButton.classList.contains('clear')) {
+                    handlePadClearClick(event);
+                } else if (adjustButton.classList.contains('up') || adjustButton.classList.contains('down')) {
+                    handlePadAdjustClick(event);
+                }
+            }
+        });
+    }
 });

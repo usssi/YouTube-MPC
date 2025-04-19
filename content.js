@@ -8,17 +8,15 @@ let currentPlaybackMode = '1shot';
 let heldKeyCode = null;
 let heldCueTime = null;
 
-// Updated function to determine base icon state
 function updateBaseIconState() {
     let newBaseState;
     if (!extensionIsEnabled) {
-        newBaseState = 'grey'; // Disabled state -> grey (_off)
+        newBaseState = 'grey';
     } else {
-        // Enabled, check mode
         if (currentPlaybackMode === 'hold') {
-            newBaseState = 'yellow'; // Hold mode -> yellow (_hold)
-        } else { // Includes '1shot' and any potential future modes default
-            newBaseState = 'green'; // 1Shot mode -> green (_on)
+            newBaseState = 'yellow';
+        } else {
+            newBaseState = 'green';
         }
     }
     console.log(`[Content_YT_Sampler] Requesting background update base state to: ${newBaseState}`);
@@ -123,8 +121,24 @@ async function toggleExtensionEnabled() {
     settings.isEnabled = !settings.isEnabled;
     console.log(`[Content_YT_Sampler] Setting isEnabled to: ${settings.isEnabled}`);
     await saveUpdatedSettings(settings);
-
 }
+
+async function toggleCurrentBankMode() {
+    console.log(`[Content_YT_Sampler] Attempting to toggle playback mode...`);
+    const settings = await getLatestSettings();
+    if (!settings) return;
+
+    const bankId = settings.selectedBank;
+    settings.banks[bankId] = settings.banks[bankId] || getDefaultBankData();
+
+    const currentMode = settings.banks[bankId].mode || '1shot';
+    const newMode = (currentMode === '1shot') ? 'hold' : '1shot';
+    settings.banks[bankId].mode = newMode;
+
+    console.log(`[Content_YT_Sampler] Setting Bank ${bankId} mode to: ${newMode}`);
+    await saveUpdatedSettings(settings);
+}
+
 
 function loadActiveBankData() {
     console.log("[Content_YT_Sampler] === loadActiveBankData START (local) ===");
@@ -169,7 +183,7 @@ function loadActiveBankData() {
 
         console.log(`[Content_YT_Sampler] loadActiveBankData: === FINAL STATE ===> Enabled: ${extensionIsEnabled}, Selected Bank: ${loadedSelectedBank}, Mode: ${currentPlaybackMode}, Timestamps:`, customTimestamps);
 
-        updateBaseIconState(); // Update icon based on loaded state
+        updateBaseIconState();
     });
 }
 
@@ -178,7 +192,7 @@ loadActiveBankData();
 chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'local' && changes[settingsStorageKey]) {
         console.log("[Content_YT_Sampler] Detected change in settings key (local). Reloading active bank data...");
-        loadActiveBankData(); // Reload will call updateBaseIconState
+        loadActiveBankData();
     }
 });
 
@@ -193,35 +207,26 @@ document.addEventListener('keydown', async (event) => {
         return;
     }
 
+    // --- Check for Ctrl down (for icon state) ---
     if ((event.code === 'ControlLeft' || event.code === 'ControlRight') && !event.repeat) {
         chrome.runtime.sendMessage({ newState: 'recording' }).catch(error => console.log("[Content_YT_Sampler] Error sending recording message (Ctrl down):", error));
     }
 
-
     let actionHandled = false;
     let videoPlayer;
 
-    let bankToSelect = null;
-    switch (code) {
-        case "NumpadDivide":   bankToSelect = 'A'; actionHandled = true; break;
-        case "NumpadMultiply": bankToSelect = 'B'; actionHandled = true; break;
-        case "NumpadSubtract": bankToSelect = 'C'; actionHandled = true; break;
-        case "NumpadAdd":      bankToSelect = 'D'; actionHandled = true; break;
-        case "NumpadDecimal":  toggleExtensionEnabled(); actionHandled = true; break;
-        case "NumpadEnter":
-             videoPlayer = document.querySelector('video.html5-main-video');
-             if (videoPlayer) { videoPlayer.paused ? videoPlayer.play() : videoPlayer.pause(); }
-             actionHandled = true; break;
-    }
-    if (bankToSelect) {
-        chrome.runtime.sendMessage({ newState: 'changing_bank' }).catch(error => console.log("[Content_YT_Sampler] Error sending changing bank message:", error));
-        selectBank(bankToSelect);
-    }
-    if(actionHandled) { event.preventDefault(); event.stopPropagation(); return; }
+    // --- Step 1: Check for specific Ctrl combinations FIRST ---
 
-    if (!extensionIsEnabled) { return; }
-
-    if (event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey && code.startsWith("Numpad")) {
+    // Ctrl + Numpad . (Decimal) -> Toggle Mode
+    if (event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey && event.code === 'NumpadDecimal') {
+        console.log("[Content_YT_Sampler] Ctrl + NumpadDecimal detected. Toggling mode.");
+        event.preventDefault();
+        event.stopPropagation();
+        await toggleCurrentBankMode();
+        actionHandled = true;
+    }
+    // Ctrl + Numpad 1-9 -> Set Timestamp
+    else if (event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey && code.startsWith("Numpad")) {
         const numpadKeyNumber = code.slice(-1);
         if (numpadKeyNumber >= '1' && numpadKeyNumber <= '9') {
             event.preventDefault(); event.stopPropagation();
@@ -232,12 +237,47 @@ document.addEventListener('keydown', async (event) => {
             actionHandled = true;
         }
     }
+    // If a Ctrl+Key action was handled, stop processing
     if(actionHandled) { return; }
 
-    actionHandled = false;
+
+    // --- Step 2: Handle Global Numpad Keys (No Ctrl) ---
+    let bankToSelect = null;
+    // This block now runs only if Ctrl combinations above didn't match
+    switch (code) {
+        case "NumpadDivide":   bankToSelect = 'A'; actionHandled = true; break;
+        case "NumpadMultiply": bankToSelect = 'B'; actionHandled = true; break;
+        case "NumpadSubtract": bankToSelect = 'C'; actionHandled = true; break;
+        case "NumpadAdd":      bankToSelect = 'D'; actionHandled = true; break;
+        case "NumpadDecimal":
+            // Toggle Enable/Disable ONLY if Ctrl is NOT held
+            if (!event.ctrlKey) {
+                 console.log("[Content_YT_Sampler] NumpadDecimal detected. Toggling enable state.");
+                 toggleExtensionEnabled();
+                 actionHandled = true;
+            } // If Ctrl IS held, actionHandled remains false, allowing default browser behavior if needed
+            break;
+        case "NumpadEnter":
+             videoPlayer = document.querySelector('video.html5-main-video');
+             if (videoPlayer) { videoPlayer.paused ? videoPlayer.play() : videoPlayer.pause(); }
+             actionHandled = true; break;
+    }
+    if (bankToSelect) { // Handle bank change after switch
+        chrome.runtime.sendMessage({ newState: 'changing_bank' }).catch(error => console.log("[Content_YT_Sampler] Error sending changing bank message:", error));
+        selectBank(bankToSelect);
+    }
+    // If a non-Ctrl global action was handled, prevent default and return
+    if(actionHandled) { event.preventDefault(); event.stopPropagation(); return; }
+
+    // --- Step 3: Check if Extension is Disabled (if not handled yet) ---
+    if (!extensionIsEnabled) { return; }
+
+    // --- Step 4: Handle Plain Numpad 1-9 & 0 (Cue Triggers / Reset) ---
+    // This runs only if Ctrl isn't held and it wasn't a global numpad key handled above
+    actionHandled = false; // Reset for this block
     videoPlayer = document.querySelector('video.html5-main-video');
 
-    if (!videoPlayer && (code.startsWith("Numpad") && code !== 'NumpadDecimal')) {
+    if (!videoPlayer && (code.startsWith("Numpad") && code !== 'NumpadDecimal')) { // Check code !== NumpadDecimal again just in case
         console.warn("[Content_YT_Sampler] Numpad pressed but video player not found!");
     } else if (videoPlayer) {
         switch (code) {
@@ -245,30 +285,23 @@ document.addEventListener('keydown', async (event) => {
             case "Numpad4": case "Numpad5": case "Numpad6":
             case "Numpad7": case "Numpad8": case "Numpad9":
                 const keyNumber = code.slice(-1);
-
                 if (currentPlaybackMode === 'hold' && heldKeyCode === code) {
-                    actionHandled = true;
+                    actionHandled = true; // Prevent default on key repeat
                     break;
                 }
-
                 const targetTime = customTimestamps[keyNumber];
                 if (targetTime !== undefined && targetTime !== null && !isNaN(targetTime)) {
                     const messageState = (currentPlaybackMode === 'hold') ? 'playing_hold' : 'playing_cue';
                     chrome.runtime.sendMessage({ newState: messageState }).catch(/*...*/);
-
                     videoPlayer.currentTime = parseFloat(targetTime);
                     videoPlayer.play();
-
                     if (currentPlaybackMode === 'hold') {
                         heldKeyCode = code;
                         heldCueTime = targetTime;
                     }
                     actionHandled = true;
-                } else {
-                     actionHandled = false;
                 }
                 break;
-
             case "Numpad0":
                  videoPlayer.pause();
                  videoPlayer.currentTime = 0;
@@ -282,6 +315,8 @@ document.addEventListener('keydown', async (event) => {
         event.stopPropagation();
         return;
     }
+
+    // Allow default browser behavior if no actions handled
 
 }, true);
 

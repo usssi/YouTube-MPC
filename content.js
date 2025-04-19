@@ -207,116 +207,88 @@ document.addEventListener('keydown', async (event) => {
         return;
     }
 
-    // --- Check for Ctrl down (for icon state) ---
     if ((event.code === 'ControlLeft' || event.code === 'ControlRight') && !event.repeat) {
         chrome.runtime.sendMessage({ newState: 'recording' }).catch(error => console.log("[Content_YT_Sampler] Error sending recording message (Ctrl down):", error));
     }
+
 
     let actionHandled = false;
     let videoPlayer;
 
     // --- Step 1: Check for specific Ctrl combinations FIRST ---
-
-    // Ctrl + Numpad . (Decimal) -> Toggle Mode
     if (event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey && event.code === 'NumpadDecimal') {
         console.log("[Content_YT_Sampler] Ctrl + NumpadDecimal detected. Toggling mode.");
-        event.preventDefault();
-        event.stopPropagation();
+        event.preventDefault(); event.stopPropagation();
         await toggleCurrentBankMode();
         actionHandled = true;
     }
-    // Ctrl + Numpad 1-9 -> Set Timestamp
     else if (event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey && code.startsWith("Numpad")) {
         const numpadKeyNumber = code.slice(-1);
         if (numpadKeyNumber >= '1' && numpadKeyNumber <= '9') {
             event.preventDefault(); event.stopPropagation();
             videoPlayer = document.querySelector('video.html5-main-video');
-            if (videoPlayer) {
-                setTimestampForKey(numpadKeyNumber, videoPlayer.currentTime);
-            }
+            if (videoPlayer) { setTimestampForKey(numpadKeyNumber, videoPlayer.currentTime); }
             actionHandled = true;
         }
     }
-    // If a Ctrl+Key action was handled, stop processing
     if(actionHandled) { return; }
 
 
     // --- Step 2: Handle Global Numpad Keys (No Ctrl) ---
     let bankToSelect = null;
-    // This block now runs only if Ctrl combinations above didn't match
     switch (code) {
         case "NumpadDivide":   bankToSelect = 'A'; actionHandled = true; break;
         case "NumpadMultiply": bankToSelect = 'B'; actionHandled = true; break;
         case "NumpadSubtract": bankToSelect = 'C'; actionHandled = true; break;
         case "NumpadAdd":      bankToSelect = 'D'; actionHandled = true; break;
         case "NumpadDecimal":
-            // Toggle Enable/Disable ONLY if Ctrl is NOT held
-            if (!event.ctrlKey) {
-                 console.log("[Content_YT_Sampler] NumpadDecimal detected. Toggling enable state.");
-                 toggleExtensionEnabled();
-                 actionHandled = true;
-            } // If Ctrl IS held, actionHandled remains false, allowing default browser behavior if needed
+            if (!event.ctrlKey) { console.log("[Content_YT_Sampler] NumpadDecimal detected. Toggling enable state."); toggleExtensionEnabled(); actionHandled = true; }
             break;
         case "NumpadEnter":
              videoPlayer = document.querySelector('video.html5-main-video');
              if (videoPlayer) { videoPlayer.paused ? videoPlayer.play() : videoPlayer.pause(); }
              actionHandled = true; break;
     }
-    if (bankToSelect) { // Handle bank change after switch
-        chrome.runtime.sendMessage({ newState: 'changing_bank' }).catch(error => console.log("[Content_YT_Sampler] Error sending changing bank message:", error));
-        selectBank(bankToSelect);
-    }
-    // If a non-Ctrl global action was handled, prevent default and return
+    if (bankToSelect) { chrome.runtime.sendMessage({ newState: 'changing_bank' }).catch(error => console.log("[Content_YT_Sampler] Error sending changing bank message:", error)); selectBank(bankToSelect); }
     if(actionHandled) { event.preventDefault(); event.stopPropagation(); return; }
 
-    // --- Step 3: Check if Extension is Disabled (if not handled yet) ---
+    // --- Step 3: Check if Extension is Disabled ---
     if (!extensionIsEnabled) { return; }
 
     // --- Step 4: Handle Plain Numpad 1-9 & 0 (Cue Triggers / Reset) ---
-    // This runs only if Ctrl isn't held and it wasn't a global numpad key handled above
-    actionHandled = false; // Reset for this block
+    actionHandled = false;
     videoPlayer = document.querySelector('video.html5-main-video');
 
-    if (!videoPlayer && (code.startsWith("Numpad") && code !== 'NumpadDecimal')) { // Check code !== NumpadDecimal again just in case
-        console.warn("[Content_YT_Sampler] Numpad pressed but video player not found!");
-    } else if (videoPlayer) {
+    if (!videoPlayer && (code.startsWith("Numpad") && code !== 'NumpadDecimal')) { console.warn("[Content_YT_Sampler] Numpad pressed but video player not found!"); }
+    else if (videoPlayer) {
         switch (code) {
             case "Numpad1": case "Numpad2": case "Numpad3":
             case "Numpad4": case "Numpad5": case "Numpad6":
             case "Numpad7": case "Numpad8": case "Numpad9":
                 const keyNumber = code.slice(-1);
-                if (currentPlaybackMode === 'hold' && heldKeyCode === code) {
-                    actionHandled = true; // Prevent default on key repeat
-                    break;
-                }
+                if (currentPlaybackMode === 'hold' && heldKeyCode === code) { actionHandled = true; break; }
                 const targetTime = customTimestamps[keyNumber];
                 if (targetTime !== undefined && targetTime !== null && !isNaN(targetTime)) {
-                    const messageState = (currentPlaybackMode === 'hold') ? 'playing_hold' : 'playing_cue';
-                    chrome.runtime.sendMessage({ newState: messageState }).catch(/*...*/);
-                    videoPlayer.currentTime = parseFloat(targetTime);
-                    videoPlayer.play();
-                    if (currentPlaybackMode === 'hold') {
-                        heldKeyCode = code;
-                        heldCueTime = targetTime;
-                    }
+                    const iconMessageState = (currentPlaybackMode === 'hold') ? 'playing_hold' : 'playing_cue';
+                    chrome.runtime.sendMessage({ newState: iconMessageState }).catch(/*...*/);
+                    if (currentPlaybackMode === 'hold') { chrome.runtime.sendMessage({ action: 'padHoldStart', key: keyNumber }).catch(/*..*/); }
+                    else { chrome.runtime.sendMessage({ action: 'padTriggered', key: keyNumber, mode: '1shot' }).catch(/*..*/); }
+                    videoPlayer.currentTime = parseFloat(targetTime); videoPlayer.play();
+                    if (currentPlaybackMode === 'hold') { heldKeyCode = code; heldCueTime = targetTime; }
                     actionHandled = true;
                 }
                 break;
+
             case "Numpad0":
-                 videoPlayer.pause();
-                 videoPlayer.currentTime = 0;
+                 videoPlayer.pause(); videoPlayer.currentTime = 0;
+                 // Send message for STOP pad flash
+                 chrome.runtime.sendMessage({ action: 'stopPadTriggered' }).catch(error => console.log("Error sending stopPadTriggered msg", error));
                  actionHandled = true;
                  break;
         }
     }
 
-    if(actionHandled) {
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-    }
-
-    // Allow default browser behavior if no actions handled
+    if(actionHandled) { event.preventDefault(); event.stopPropagation(); return; }
 
 }, true);
 
@@ -331,9 +303,10 @@ document.addEventListener('keyup', async (event) => {
      }
      else if (code === heldKeyCode && currentPlaybackMode === 'hold') {
          console.log(`[Content_YT_Sampler] Hold Mode: Detected keyup for ${code}`);
+         const keyNumberReleased = code.slice(-1);
+         chrome.runtime.sendMessage({ action: 'padHoldEnd', key: keyNumberReleased }).catch(error => console.log("Error sending padHoldEnd msg", error));
          if (videoPlayer && heldCueTime !== null) {
-             event.preventDefault();
-             event.stopPropagation();
+             event.preventDefault(); event.stopPropagation();
              videoPlayer.currentTime = parseFloat(heldCueTime);
              videoPlayer.pause();
              console.log(`[Content_YT_Sampler] Hold Mode: Jumped back to ${heldCueTime} and paused.`);

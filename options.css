@@ -1,4 +1,3 @@
-/* Add Tooltip styles, other styles remain */
 :root {
     --bg-color: #282828;
     --container-bg: #353535;
@@ -40,8 +39,11 @@
     --switch-knob-hold-bg: var(--screen-hold-text-color);
     --stop-pad-bg: #a04040;
     --stop-pad-border: #6b2b2b;
-    --tooltip-bg: #1e1e1e; /* Tooltip colors */
+    --stop-pad-triggered-border: #FFFFFF;
+    --tooltip-bg: #1e1e1e;
     --tooltip-text: #e0e0e0;
+    --pad-triggered-1shot-border: #00E676;
+    --pad-triggered-hold-border: var(--switch-knob-hold-bg);
 
     --base-font-size: 13px;
     --container-width: 520px;
@@ -55,7 +57,6 @@
     --pad-label-height: 12px;
 }
 
-/* ... existing styles ... */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: var(--bg-color);
@@ -466,6 +467,7 @@ body {
     padding: 4px 6px;
     border-radius: 4px;
     box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+    transition: border-color 0.1s ease;
 }
 .stop-pad span {
     text-align: center;
@@ -474,6 +476,11 @@ body {
     filter: none;
     box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
 }
+.stop-pad.stop-pad-triggered {
+    border-color: var(--stop-pad-triggered-border) !important;
+    transition: border-color 0.05s ease-out;
+}
+
 
 .status-message {
     margin-top: var(--gap); font-weight: 500; min-height: 1em;
@@ -485,22 +492,27 @@ body {
 }
 .hidden-inputs { display: none; }
 
-/* Tooltip Styles (Re-added) */
 .tooltip {
-    position: fixed; /* Use fixed to position relative to viewport */
+    position: fixed;
     background-color: var(--tooltip-bg);
     color: var(--tooltip-text);
     font-size: 0.85em;
     padding: 5px 8px;
     border-radius: 3px;
-    z-index: 10000; /* High z-index */
+    z-index: 10000;
     max-width: 200px;
     text-align: center;
     opacity: 0;
     transition: opacity 0.2s ease-in-out;
-    pointer-events: none; /* No interaction with tooltip */
+    pointer-events: none;
     white-space: pre-wrap;
-    /* Prevent line breaks from affecting width calculation initially */
-    /* white-space: nowrap; */ /* Replaced by pre-wrap */
-    /* display: none; set by JS */
+}
+
+.mpc-pad.pad-triggered-1shot {
+    border-color: var(--pad-triggered-1shot-border) !important;
+    transition: border-color 0.05s ease-out, background-color 0.05s ease-out;
+}
+.mpc-pad.pad-triggered-hold {
+    border-color: var(--pad-triggered-hold-border) !important;
+    transition: border-color 0.05s ease-out, background-color 0.05s ease-out;
 }

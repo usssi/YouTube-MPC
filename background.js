@@ -1,22 +1,25 @@
 let baseIconState = 'grey';
 let revertTimerId = null;
 
-// --- EDIT THIS VALUE --- (Duration in milliseconds)
-const TEMPORARY_ICON_DURATION_MS = 150;
-// ---------------------
+const TEMPORARY_ICON_DURATION_MS = 250;
 
+// Add 'yellow' state mapped to '_hold' suffix
 const iconStateMap = {
-  grey: '_off',
-  green: '_on',
-  red: '_rec',
-  white: '_cue',
-  blue: '_bank'
+  grey: '_off',    // Disabled
+  green: '_on',    // Enabled + 1Shot Mode
+  yellow: '_hold', // Enabled + Hold Mode
+  red: '_rec',     // Recording (Ctrl held)
+  white: '_cue',   // Playing Cue (temporary)
+  blue: '_bank'    // Changing Bank (temporary)
 };
 
 function setIcon(state) {
-  if (revertTimerId) {
-    clearTimeout(revertTimerId);
-    revertTimerId = null;
+  if (state !== 'red' && state !== 'white' && revertTimerId) {
+      clearTimeout(revertTimerId);
+      revertTimerId = null;
+  } else if ((state === 'red' || state === 'white') && revertTimerId) {
+      clearTimeout(revertTimerId);
+      revertTimerId = null;
   }
 
   const suffix = iconStateMap[state];
@@ -36,36 +39,49 @@ function setIcon(state) {
     .catch(error => console.error(`[YT Sampler BG] Error setting icon to ${state}:`, error));
 }
 
-function setTemporaryIcon(state, duration = TEMPORARY_ICON_DURATION_MS) {
+function setTimedTemporaryIcon(state, duration = TEMPORARY_ICON_DURATION_MS) {
    setIcon(state);
-
+   if (revertTimerId) clearTimeout(revertTimerId);
    revertTimerId = setTimeout(() => {
-       console.log(`[YT Sampler BG] Reverting temporary icon (${state}) to base state: ${baseIconState}`);
+       console.log(`[YT Sampler BG] Reverting timed temporary icon (${state}) to base state: ${baseIconState}`);
        setIcon(baseIconState);
        revertTimerId = null;
    }, duration);
 }
 
+function setStickyIcon(state) {
+    if (revertTimerId) {
+        clearTimeout(revertTimerId);
+        revertTimerId = null;
+    }
+    setIcon(state);
+}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.baseState !== undefined) {
-    baseIconState = message.baseState;
+  // Handle base state updates (grey, green, yellow)
+  if (message.baseState !== undefined && iconStateMap[message.baseState]) {
+    baseIconState = message.baseState; // Store the correct base state
     console.log(`[YT Sampler BG] Base state updated to: ${baseIconState}`);
+    // Only set icon if no temporary timer is active
+    // Sticky states (red/white) will be handled by revert_to_base
     if (!revertTimerId) {
         setIcon(baseIconState);
     }
-  } else if (message.newState === 'recording') {
-    setIcon('red'); // Recording icon stays until keyup (revert_to_base)
+  }
+  // Handle temporary/sticky states
+  else if (message.newState === 'recording') {
+    setStickyIcon('red');
+  } else if (message.newState === 'playing_hold') {
+    setStickyIcon('white'); // Use white for hold playback (sticky)
   } else if (message.newState === 'playing_cue') {
-    setTemporaryIcon('white'); // Uses the constant duration
+    setTimedTemporaryIcon('white'); // Use white for 1shot playback (timed)
   } else if (message.newState === 'changing_bank') {
-    setTemporaryIcon('blue'); // Uses the constant duration
+    setTimedTemporaryIcon('blue');
   }
   else if (message.newState === 'revert_to_base') {
-     if (!revertTimerId) { // Only revert if a temporary icon timer isn't active
-        console.log(`[YT Sampler BG] Reverting icon to base state: ${baseIconState}`);
-        setIcon(baseIconState);
-     }
+     // Always revert to the currently stored base state
+     console.log(`[YT Sampler BG] Reverting icon to base state: ${baseIconState}`);
+     setIcon(baseIconState); // This clears any timer and sets the correct base icon
   }
 });
 

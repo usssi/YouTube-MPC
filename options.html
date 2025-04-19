@@ -24,9 +24,20 @@
                         <div class="screen-label">BANK</div>
                         <div id="display-bank" class="screen-text">A</div>
                     </div>
+                    <div class="screen-section">
+                        <div class="screen-label">PLAYBACK MODE</div>
+                        <div id="display-mode" class="screen-text">1SHOT</div> </div>
                  </div>
+                 <div class="mode-selection">
+                    <div class="mode-label">Mode Select:</div>
+                    <div class="mode-switch-container">
+                        <div class="mode-switch horizontal" id="mode-switch-track" data-mode="1shot"> <div class="mode-switch-knob"></div>
+                        </div>
+                    </div>
+                </div>
                 <div class="control-buttons">
-                     <button id="clear-all" class="mpc-button function-button">Clear Bank</button> </div>
+                     <button id="clear-all" class="mpc-button function-button">Clear Bank</button>
+                </div>
             </div>
 
             <div class="right-panel">
@@ -48,10 +59,9 @@
                         <button class="mpc-button bank-button" data-bank="D" id="bank-btn-d">Bank D</button>
                     </div>
                  </div>
-
                 <div class="pad-area">
                     <div class="pad-grid">
-                        <div class="pad-container">
+                         <div class="pad-container">
                             <span class="pad-label">Num PAD: 7</span>
                             <div class="mpc-pad" id="pad-7" data-key="7">
                                 <button class="pad-clear-button" data-key="7">x</button>
@@ -169,19 +179,7 @@
         </div>
 
         <div class="hidden-inputs">
-            <input type="number" id="key1" step="0.1" min="0">
-            <input type="number" id="key2" step="0.1" min="0">
-            <input type="number" id="key3" step="0.1" min="0">
-            <input type="number" id="key4" step="0.1" min="0">
-            <input type="number" id="key5" step="0.1" min="0">
-            <input type="number" id="key6" step="0.1" min="0">
-            <input type="number" id="key7" step="0.1" min="0">
-            <input type="number" id="key8" step="0.1" min="0">
-            <input type="number" id="key9" step="0.1" min="0">
-
-            <input type="radio" id="mode-trigger" name="mode" value="trigger" checked>
-            <input type="radio" id="mode-hold" name="mode" value="hold">
-        </div>
+             </div>
 
         <div id="status" class="status-message"></div>
     </div>

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Sampler Keys",
+  "name": "YouTube MPC",
   "version": "1.0",
   "description": "Remaps number keys (1-0) to jump to custom timestamps in YouTube videos.",
   "permissions": [
@@ -14,7 +14,7 @@
   ],
   "options_page": "options.html",
   "action": {
-    "default_title": "Configure YouTube Sampler Keys",
+    "default_title": "YouTube MPC Options",
     "default_popup": "options.html",
     "default_icon": {
       "16": "icons/16x/16_off.png",
@@ -25,7 +25,7 @@
   "background": {
     "service_worker": "background.js"
   },
-   "icons": {
+    "icons": {
       "16": "icons/16x/16_off.png",
       "48": "icons/48x/48_off.png",
       "128": "icons/128x/128_off.png"

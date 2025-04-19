@@ -44,7 +44,7 @@
     --tooltip-text: #e0e0e0;
     --pad-triggered-1shot-border: #00E676;
     --pad-triggered-hold-border: var(--switch-knob-hold-bg);
-    /* Removed bank editing vars */
+    --signature-color: #888;
 
     --base-font-size: 13px;
     --container-width: 520px;
@@ -81,18 +81,28 @@ body {
     max-width: 100%;
     box-shadow: 0 5px 15px rgba(0,0,0,0.6);
     box-sizing: border-box;
+    position: relative;
 }
 
 .mpc-header {
     display: flex; justify-content: space-between; align-items: center;
     margin-bottom: var(--gap); border-bottom: 1px solid #505050; padding-bottom: 10px;
 }
-.mpc-header h1 { margin: 0; font-size: 1.2em; font-weight: 600; }
+
+.mpc-header h1#main-title {
+    margin: 0;
+    font-size: 1.2em;
+    font-family: "Orbitron", sans-serif; /* Apply Orbitron */
+    font-weight: 700; /* Use a bolder weight */
+    font-optical-sizing: auto; /* Recommended for variable fonts */
+    font-style: normal; /* Ensure normal style */
+}
 
 .main-interface {
     display: grid;
     grid-template-columns: .5fr 2fr;
     gap: var(--gap);
+    margin-bottom: 20px;
 }
 
 .left-panel, .right-panel {
@@ -210,12 +220,9 @@ body {
     margin-top: auto;
     padding-top: 10px;
     display: flex;
-    justify-content: center;
-}
-#clear-all {
-    width: auto;
-    max-width: 140px;
-    flex-grow: 0;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
 }
 
 .mpc-button {
@@ -238,13 +245,41 @@ body {
 #enable-button:hover { filter: brightness(1.1); }
 #enable-button:active { filter: brightness(0.9); }
 
+.control-buttons .mpc-button {
+    width: 100%;
+    max-width: 140px;
+}
+
+
+#save-bank,
+#load-bank {
+    background-color: var(--button-bg);
+    border-color: var(--button-border);
+}
+
+#save-bank:hover,
+#load-bank:hover {
+    background-color: #606060;
+}
+
+#clear-all {
+    background-color: var(--enable-button-off-bg);
+    border-color: var(--enable-button-off-border);
+    color: #ffffff;
+}
+
+#clear-all:hover {
+     filter: brightness(1.1);
+}
+
+
 .bank-selection {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 8px;
 }
 .bank-button-container {
-    position: relative; /* Needed for positioning temp input */
+    position: relative;
     padding-top: var(--pad-label-height);
     min-width: 0;
 }
@@ -258,7 +293,6 @@ body {
     box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
 }
 
-/* Style for temporary input used for bank name editing */
 .temp-bank-name-input {
     position: absolute;
     top: 0;
@@ -266,8 +300,8 @@ body {
     width: 100%;
     height: 100%;
     padding: var(--button-padding);
-    margin: 0; /* Override default input margin */
-    border: 1px solid var(--button-active-border); /* Indicate editing */
+    margin: 0;
+    border: 1px solid var(--button-active-border);
     border-radius: 3px;
     background-color: var(--input-bg);
     color: var(--text-color);
@@ -275,8 +309,8 @@ body {
     font-size: inherit;
     font-weight: inherit;
     text-align: center;
-    box-sizing: border-box; /* Include padding/border in size */
-    z-index: 2; /* Ensure it's above the button */
+    box-sizing: border-box;
+    z-index: 2;
     outline: none;
 }
 
@@ -539,4 +573,27 @@ body {
 .mpc-pad.pad-triggered-hold {
     border-color: var(--pad-triggered-hold-border) !important;
     transition: border-color 0.05s ease-out, background-color 0.05s ease-out;
+}
+
+#signature {
+    position: absolute;
+    bottom: 15px;
+    right: 20px;
+    font-size: 1.25em; /* Increased size */
+    color: var(--signature-color);
+    opacity: 0.7;
+    user-select: none;
+    pointer-events: auto;
+}
+
+#signature a {
+    color: inherit;
+    text-decoration: none;
+    opacity: inherit;
+    transition: opacity 0.15s ease;
+}
+
+#signature a:hover {
+    text-decoration: underline;
+    opacity: 1.0;
 }

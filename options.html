@@ -4,12 +4,15 @@
     <title>YouTube MPC Options</title>
     <link rel="stylesheet" href="options.css">
     <meta charset="UTF-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="mpc-container">
 
         <header class="mpc-header">
-            <h1>YouTube MPC</h1>
+            <h1 id="main-title">YouTube MPC</h1>
             <button id="enable-button" class="mpc-button function-button"
                     data-tooltip="Enable/Disable the extension's keyboard shortcuts. (Numpad .)">Enable</button>
         </header>
@@ -38,153 +41,157 @@
                             <div class="mode-switch-knob"></div>
                         </div>
                     </div>
-                </div>
+                 </div>
                 <div class="control-buttons">
-                     <button id="clear-all" class="mpc-button function-button"
-                             data-tooltip="Clear all timestamps for the currently selected bank.">Clear Bank</button>
+                    <button id="save-bank" class="mpc-button function-button"
+                            data-tooltip="Save current bank's cues, mode, and name to a file.">Save Bank</button>
+                    <button id="load-bank" class="mpc-button function-button"
+                            data-tooltip="Load cues, mode, and name from a file into the current bank.">Load Bank</button>
+                    <button id="clear-all" class="mpc-button function-button"
+                            data-tooltip="Clear all timestamps AND reset name for the currently selected bank.">Clear Bank</button>
                 </div>
             </div>
 
             <div class="right-panel">
                  <div class="bank-selection">
-                    <div class="bank-button-container">
-                        <span class="pad-label">Hotkey: /</span>
-                        <button class="mpc-button bank-button" data-bank="A" id="bank-btn-a" spellcheck="false"
-                                data-tooltip="Select Bank A (Numpad /). Double-click to rename.">Bank A</button>
-                    </div>
-                    <div class="bank-button-container">
-                        <span class="pad-label">Hotkey: *</span>
-                        <button class="mpc-button bank-button" data-bank="B" id="bank-btn-b" spellcheck="false"
-                                data-tooltip="Select Bank B (Numpad *). Double-click to rename.">Bank B</button>
-                    </div>
-                    <div class="bank-button-container">
-                        <span class="pad-label">Hotkey: -</span>
-                        <button class="mpc-button bank-button" data-bank="C" id="bank-btn-c" spellcheck="false"
-                                data-tooltip="Select Bank C (Numpad -). Double-click to rename.">Bank C</button>
-                    </div>
-                    <div class="bank-button-container">
-                        <span class="pad-label">Hotkey: +</span>
-                        <button class="mpc-button bank-button" data-bank="D" id="bank-btn-d" spellcheck="false"
-                                data-tooltip="Select Bank D (Numpad +). Double-click to rename.">Bank D</button>
-                    </div>
+                     <div class="bank-button-container">
+                         <span class="pad-label">Hotkey: /</span>
+                         <button class="mpc-button bank-button" data-bank="A" id="bank-btn-a" spellcheck="false"
+                                 data-tooltip="Select Bank A (Numpad /). Double-click to rename.">Bank A</button>
+                     </div>
+                     <div class="bank-button-container">
+                         <span class="pad-label">Hotkey: *</span>
+                         <button class="mpc-button bank-button" data-bank="B" id="bank-btn-b" spellcheck="false"
+                                 data-tooltip="Select Bank B (Numpad *). Double-click to rename.">Bank B</button>
+                     </div>
+                     <div class="bank-button-container">
+                         <span class="pad-label">Hotkey: -</span>
+                         <button class="mpc-button bank-button" data-bank="C" id="bank-btn-c" spellcheck="false"
+                                 data-tooltip="Select Bank C (Numpad -). Double-click to rename.">Bank C</button>
+                     </div>
+                     <div class="bank-button-container">
+                         <span class="pad-label">Hotkey: +</span>
+                         <button class="mpc-button bank-button" data-bank="D" id="bank-btn-d" spellcheck="false"
+                                 data-tooltip="Select Bank D (Numpad +). Double-click to rename.">Bank D</button>
+                     </div>
                  </div>
-                <div class="pad-area">
-                    <div class="pad-grid">
+                 <div class="pad-area">
+                     <div class="pad-grid">
                          <div class="pad-container">
-                            <span class="pad-label">Num PAD: 7</span>
-                            <div class="mpc-pad" id="pad-7" data-key="7">
-                                <button class="pad-clear-button" data-key="7" data-tooltip="Clear cue for Numpad 7">x</button>
-                                <input type="number" class="pad-input" data-key="7" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 7">
-                                <div class="pad-right-column">
-                                    <button class="pad-adjust up" data-key="7" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 7)">+</button>
-                                    <span class="seconds-suffix">s</span>
-                                    <button class="pad-adjust down" data-key="7" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 7)">-</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="pad-container">
-                            <span class="pad-label">Num PAD: 8</span>
-                            <div class="mpc-pad" id="pad-8" data-key="8">
-                                <button class="pad-clear-button" data-key="8" data-tooltip="Clear cue for Numpad 8">x</button>
-                                <input type="number" class="pad-input" data-key="8" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 8">
-                                <div class="pad-right-column">
-                                    <button class="pad-adjust up" data-key="8" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 8)">+</button>
-                                    <span class="seconds-suffix">s</span>
-                                    <button class="pad-adjust down" data-key="8" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 8)">-</button>
-                                </div>
-                            </div>
-                        </div>
-                         <div class="pad-container">
-                            <span class="pad-label">Num PAD: 9</span>
-                            <div class="mpc-pad" id="pad-9" data-key="9">
-                                <button class="pad-clear-button" data-key="9" data-tooltip="Clear cue for Numpad 9">x</button>
-                                <input type="number" class="pad-input" data-key="9" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 9">
-                                <div class="pad-right-column">
-                                    <button class="pad-adjust up" data-key="9" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 9)">+</button>
-                                    <span class="seconds-suffix">s</span>
-                                    <button class="pad-adjust down" data-key="9" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 9)">-</button>
-                                </div>
-                            </div>
-                        </div>
-                         <div class="pad-container">
-                            <span class="pad-label">Num PAD: 4</span>
-                            <div class="mpc-pad" id="pad-4" data-key="4">
-                                <button class="pad-clear-button" data-key="4" data-tooltip="Clear cue for Numpad 4">x</button>
-                                <input type="number" class="pad-input" data-key="4" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 4">
-                                <div class="pad-right-column">
-                                    <button class="pad-adjust up" data-key="4" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 4)">+</button>
-                                    <span class="seconds-suffix">s</span>
-                                    <button class="pad-adjust down" data-key="4" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 4)">-</button>
-                                </div>
-                            </div>
-                        </div>
-                         <div class="pad-container">
-                            <span class="pad-label">Num PAD: 5</span>
-                            <div class="mpc-pad" id="pad-5" data-key="5">
-                                <button class="pad-clear-button" data-key="5" data-tooltip="Clear cue for Numpad 5">x</button>
-                                <input type="number" class="pad-input" data-key="5" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 5">
-                                <div class="pad-right-column">
-                                    <button class="pad-adjust up" data-key="5" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 5)">+</button>
-                                    <span class="seconds-suffix">s</span>
-                                    <button class="pad-adjust down" data-key="5" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 5)">-</button>
-                                </div>
-                            </div>
-                        </div>
-                         <div class="pad-container">
-                            <span class="pad-label">Num PAD: 6</span>
-                            <div class="mpc-pad" id="pad-6" data-key="6">
-                                <button class="pad-clear-button" data-key="6" data-tooltip="Clear cue for Numpad 6">x</button>
-                                <input type="number" class="pad-input" data-key="6" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 6">
-                                <div class="pad-right-column">
-                                    <button class="pad-adjust up" data-key="6" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 6)">+</button>
-                                    <span class="seconds-suffix">s</span>
-                                    <button class="pad-adjust down" data-key="6" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 6)">-</button>
-                                </div>
-                            </div>
-                        </div>
-                         <div class="pad-container">
-                            <span class="pad-label">Num PAD: 1</span>
-                            <div class="mpc-pad" id="pad-1" data-key="1">
-                                <button class="pad-clear-button" data-key="1" data-tooltip="Clear cue for Numpad 1">x</button>
-                                <input type="number" class="pad-input" data-key="1" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 1">
-                                <div class="pad-right-column">
-                                    <button class="pad-adjust up" data-key="1" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 1)">+</button>
-                                    <span class="seconds-suffix">s</span>
-                                    <button class="pad-adjust down" data-key="1" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 1)">-</button>
-                                </div>
-                            </div>
-                        </div>
-                         <div class="pad-container">
-                            <span class="pad-label">Num PAD: 2</span>
-                            <div class="mpc-pad" id="pad-2" data-key="2">
-                                <button class="pad-clear-button" data-key="2" data-tooltip="Clear cue for Numpad 2">x</button>
-                                <input type="number" class="pad-input" data-key="2" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 2">
-                                <div class="pad-right-column">
-                                    <button class="pad-adjust up" data-key="2" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 2)">+</button>
-                                    <span class="seconds-suffix">s</span>
-                                    <button class="pad-adjust down" data-key="2" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 2)">-</button>
-                                </div>
-                            </div>
-                        </div>
-                         <div class="pad-container">
-                            <span class="pad-label">Num PAD: 3</span>
-                            <div class="mpc-pad" id="pad-3" data-key="3">
-                                <button class="pad-clear-button" data-key="3" data-tooltip="Clear cue for Numpad 3">x</button>
-                                <input type="number" class="pad-input" data-key="3" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 3">
-                                <div class="pad-right-column">
-                                    <button class="pad-adjust up" data-key="3" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 3)">+</button>
-                                    <span class="seconds-suffix">s</span>
-                                    <button class="pad-adjust down" data-key="3" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 3)">-</button>
-                                </div>
-                            </div>
-                        </div>
-                         <div class="pad-container" data-tooltip="Stop playback and reset time to 0 (Numpad 0)">
-                            <span class="pad-label">Num PAD: 0</span>
-                            <div class="mpc-pad stop-pad" id="pad-0">
-                                <span>STOP</span>
-                            </div>
+                             <span class="pad-label">Num PAD: 7</span>
+                             <div class="mpc-pad" id="pad-7" data-key="7">
+                                 <button class="pad-clear-button" data-key="7" data-tooltip="Clear cue for Numpad 7">x</button>
+                                 <input type="number" class="pad-input" data-key="7" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 7">
+                                 <div class="pad-right-column">
+                                     <button class="pad-adjust up" data-key="7" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 7)">+</button>
+                                     <span class="seconds-suffix">s</span>
+                                     <button class="pad-adjust down" data-key="7" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 7)">-</button>
+                                 </div>
+                             </div>
                          </div>
-                    </div>
+                         <div class="pad-container">
+                             <span class="pad-label">Num PAD: 8</span>
+                             <div class="mpc-pad" id="pad-8" data-key="8">
+                                 <button class="pad-clear-button" data-key="8" data-tooltip="Clear cue for Numpad 8">x</button>
+                                 <input type="number" class="pad-input" data-key="8" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 8">
+                                 <div class="pad-right-column">
+                                     <button class="pad-adjust up" data-key="8" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 8)">+</button>
+                                     <span class="seconds-suffix">s</span>
+                                     <button class="pad-adjust down" data-key="8" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 8)">-</button>
+                                 </div>
+                             </div>
+                         </div>
+                          <div class="pad-container">
+                             <span class="pad-label">Num PAD: 9</span>
+                             <div class="mpc-pad" id="pad-9" data-key="9">
+                                 <button class="pad-clear-button" data-key="9" data-tooltip="Clear cue for Numpad 9">x</button>
+                                 <input type="number" class="pad-input" data-key="9" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 9">
+                                 <div class="pad-right-column">
+                                     <button class="pad-adjust up" data-key="9" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 9)">+</button>
+                                     <span class="seconds-suffix">s</span>
+                                     <button class="pad-adjust down" data-key="9" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 9)">-</button>
+                                 </div>
+                             </div>
+                         </div>
+                          <div class="pad-container">
+                             <span class="pad-label">Num PAD: 4</span>
+                             <div class="mpc-pad" id="pad-4" data-key="4">
+                                 <button class="pad-clear-button" data-key="4" data-tooltip="Clear cue for Numpad 4">x</button>
+                                 <input type="number" class="pad-input" data-key="4" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 4">
+                                 <div class="pad-right-column">
+                                     <button class="pad-adjust up" data-key="4" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 4)">+</button>
+                                     <span class="seconds-suffix">s</span>
+                                     <button class="pad-adjust down" data-key="4" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 4)">-</button>
+                                 </div>
+                             </div>
+                         </div>
+                          <div class="pad-container">
+                             <span class="pad-label">Num PAD: 5</span>
+                             <div class="mpc-pad" id="pad-5" data-key="5">
+                                 <button class="pad-clear-button" data-key="5" data-tooltip="Clear cue for Numpad 5">x</button>
+                                 <input type="number" class="pad-input" data-key="5" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 5">
+                                 <div class="pad-right-column">
+                                     <button class="pad-adjust up" data-key="5" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 5)">+</button>
+                                     <span class="seconds-suffix">s</span>
+                                     <button class="pad-adjust down" data-key="5" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 5)">-</button>
+                                 </div>
+                             </div>
+                         </div>
+                          <div class="pad-container">
+                             <span class="pad-label">Num PAD: 6</span>
+                             <div class="mpc-pad" id="pad-6" data-key="6">
+                                 <button class="pad-clear-button" data-key="6" data-tooltip="Clear cue for Numpad 6">x</button>
+                                 <input type="number" class="pad-input" data-key="6" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 6">
+                                 <div class="pad-right-column">
+                                     <button class="pad-adjust up" data-key="6" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 6)">+</button>
+                                     <span class="seconds-suffix">s</span>
+                                     <button class="pad-adjust down" data-key="6" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 6)">-</button>
+                                 </div>
+                             </div>
+                         </div>
+                          <div class="pad-container">
+                             <span class="pad-label">Num PAD: 1</span>
+                             <div class="mpc-pad" id="pad-1" data-key="1">
+                                 <button class="pad-clear-button" data-key="1" data-tooltip="Clear cue for Numpad 1">x</button>
+                                 <input type="number" class="pad-input" data-key="1" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 1">
+                                 <div class="pad-right-column">
+                                     <button class="pad-adjust up" data-key="1" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 1)">+</button>
+                                     <span class="seconds-suffix">s</span>
+                                     <button class="pad-adjust down" data-key="1" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 1)">-</button>
+                                 </div>
+                             </div>
+                         </div>
+                          <div class="pad-container">
+                             <span class="pad-label">Num PAD: 2</span>
+                             <div class="mpc-pad" id="pad-2" data-key="2">
+                                 <button class="pad-clear-button" data-key="2" data-tooltip="Clear cue for Numpad 2">x</button>
+                                 <input type="number" class="pad-input" data-key="2" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 2">
+                                 <div class="pad-right-column">
+                                     <button class="pad-adjust up" data-key="2" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 2)">+</button>
+                                     <span class="seconds-suffix">s</span>
+                                     <button class="pad-adjust down" data-key="2" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 2)">-</button>
+                                 </div>
+                             </div>
+                         </div>
+                          <div class="pad-container">
+                             <span class="pad-label">Num PAD: 3</span>
+                             <div class="mpc-pad" id="pad-3" data-key="3">
+                                 <button class="pad-clear-button" data-key="3" data-tooltip="Clear cue for Numpad 3">x</button>
+                                 <input type="number" class="pad-input" data-key="3" step="0.01" min="0" placeholder="--.--" data-tooltip="Enter cue time (seconds) for Numpad 3">
+                                 <div class="pad-right-column">
+                                     <button class="pad-adjust up" data-key="3" data-delta="0.05" data-tooltip="Increase cue time by 0.05s (Numpad 3)">+</button>
+                                     <span class="seconds-suffix">s</span>
+                                     <button class="pad-adjust down" data-key="3" data-delta="-0.05" data-tooltip="Decrease cue time by 0.05s (Numpad 3)">-</button>
+                                 </div>
+                             </div>
+                         </div>
+                          <div class="pad-container" data-tooltip="Stop playback and reset time to 0 (Numpad 0)">
+                             <span class="pad-label">Num PAD: 0</span>
+                             <div class="mpc-pad stop-pad" id="pad-0">
+                                 <span>STOP</span>
+                             </div>
+                         </div>
+                     </div>
                  </div>
             </div>
         </div>
@@ -196,6 +203,9 @@
 
         <div id="custom-tooltip" class="tooltip" role="tooltip" style="display: none; opacity: 0;"></div>
 
+        <div id="signature">
+             <a href="https://ussi.dev" target="_blank" rel="noopener noreferrer">by ussi</a>
+        </div>
     </div>
     <script src="options.js"></script>
 </body>

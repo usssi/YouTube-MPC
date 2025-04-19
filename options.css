@@ -1,3 +1,4 @@
+/* Add Tooltip styles, other styles remain */
 :root {
     --bg-color: #282828;
     --container-bg: #353535;
@@ -39,6 +40,8 @@
     --switch-knob-hold-bg: var(--screen-hold-text-color);
     --stop-pad-bg: #a04040;
     --stop-pad-border: #6b2b2b;
+    --tooltip-bg: #1e1e1e; /* Tooltip colors */
+    --tooltip-text: #e0e0e0;
 
     --base-font-size: 13px;
     --container-width: 520px;
@@ -52,6 +55,7 @@
     --pad-label-height: 12px;
 }
 
+/* ... existing styles ... */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: var(--bg-color);
@@ -302,16 +306,13 @@ body {
     opacity: 1;
 }
 .mpc-pad:not(.has-cue) {
-    /* Default styles for inactive pads (dimmed, default colors) */
-    /* These might conflict with .stop-pad, hence !important needed there */
     opacity: var(--pad-disabled-opacity);
     background-color: var(--pad-bg);
     border-color: var(--pad-border);
     color: var(--pad-text);
 }
 
-/* Color inheritance needs careful handling */
-.mpc-pad:not(.has-cue) > *:not(.stop-pad *) { /* Apply to children, except within stop-pad */
+.mpc-pad:not(.has-cue) > *:not(.stop-pad *) {
     color: var(--pad-text);
 }
 .mpc-pad.has-cue > *:not(.stop-pad *) {
@@ -448,23 +449,18 @@ body {
     opacity: 0.5;
 }
 
-/* Styles for the Stop Pad (Numpad 0) */
 .stop-pad {
     height: calc(var(--pad-size) / 2);
     width: 100%;
-    /* Force styles using !important to override .mpc-pad:not(.has-cue) */
     background-color: var(--stop-pad-bg) !important;
     border-color: var(--stop-pad-border) !important;
     color: #ffffff !important;
     opacity: 1 !important;
-    /* Styling */
     font-weight: bold;
     font-size: 1em;
-    /* Alignment & Behavior */
     justify-content: center;
     align-items: center;
     cursor: default;
-    /* Inherited base styles from .mpc-pad */
     display: flex;
     box-sizing: border-box;
     padding: 4px 6px;
@@ -476,9 +472,8 @@ body {
 }
 .stop-pad:hover, .stop-pad:active {
     filter: none;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.4); /* Maintain shadow */
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
 }
-
 
 .status-message {
     margin-top: var(--gap); font-weight: 500; min-height: 1em;
@@ -489,3 +484,23 @@ body {
     opacity: 1;
 }
 .hidden-inputs { display: none; }
+
+/* Tooltip Styles (Re-added) */
+.tooltip {
+    position: fixed; /* Use fixed to position relative to viewport */
+    background-color: var(--tooltip-bg);
+    color: var(--tooltip-text);
+    font-size: 0.85em;
+    padding: 5px 8px;
+    border-radius: 3px;
+    z-index: 10000; /* High z-index */
+    max-width: 200px;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+    pointer-events: none; /* No interaction with tooltip */
+    white-space: pre-wrap;
+    /* Prevent line breaks from affecting width calculation initially */
+    /* white-space: nowrap; */ /* Replaced by pre-wrap */
+    /* display: none; set by JS */
+}

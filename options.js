@@ -7,7 +7,17 @@ const displayBankElement = document.getElementById('display-bank');
 const displayStatusElement = document.getElementById('display-status');
 const displayModeElement = document.getElementById('display-mode');
 const modeSwitchElement = document.getElementById('mode-switch-track');
-const screenAreaElement = document.querySelector('.screen-area'); // Added selector for screen area
+const screenAreaElement = document.querySelector('.screen-area');
+const clearAllButton = document.getElementById('clear-all');
+
+// --- Tooltip Configuration ---
+const TOOLTIP_SHOW_DELAY_MS = 500;
+const TOOLTIP_VERTICAL_OFFSET_PX = 25;
+const tooltipElement = document.getElementById('custom-tooltip');
+let tooltipShowTimer = null;
+let latestMouseX = 0;
+let latestMouseY = 0;
+// --- End Tooltip Configuration ---
 
 
 let isInitialized = false;
@@ -29,6 +39,65 @@ function getDefaultSettings() {
         }
     };
 }
+
+// --- Tooltip Functions ---
+function showTooltip(mouseX, mouseY, text) {
+    if (!tooltipElement) return;
+
+    tooltipElement.textContent = text;
+    tooltipElement.style.display = 'block';
+    tooltipElement.style.opacity = '0';
+
+    const tooltipWidth = tooltipElement.offsetWidth;
+    const tooltipHeight = tooltipElement.offsetHeight;
+    const cursorOffsetY = TOOLTIP_VERTICAL_OFFSET_PX;
+    const boundaryPadding = 5;
+
+    let top = mouseY + cursorOffsetY;
+    let left = mouseX - (tooltipWidth / 2);
+
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+
+    if (left + tooltipWidth + boundaryPadding > windowWidth) {
+        left = windowWidth - tooltipWidth - boundaryPadding;
+    }
+    if (left < boundaryPadding) {
+        left = boundaryPadding;
+    }
+
+    if (top + tooltipHeight + boundaryPadding > windowHeight) {
+        top = mouseY - tooltipHeight - cursorOffsetY;
+    }
+    if (top < boundaryPadding) {
+        top = boundaryPadding;
+    }
+
+    tooltipElement.style.left = `${left}px`;
+    tooltipElement.style.top = `${top}px`;
+
+    setTimeout(() => {
+       tooltipElement.style.opacity = '1';
+    }, 10);
+}
+
+function hideTooltip() {
+     if (tooltipShowTimer) {
+        clearTimeout(tooltipShowTimer);
+        tooltipShowTimer = null;
+    }
+    if(tooltipElement){
+        tooltipElement.style.opacity = '0';
+        setTimeout(() => {
+            if (tooltipElement.style.opacity === '0') {
+                 tooltipElement.style.display = 'none';
+                 tooltipElement.textContent = '';
+            }
+        }, 200);
+    }
+}
+// --- End Tooltip Functions ---
+
 
 function updateUIFromSettings(settings) {
     const selectedBank = settings?.selectedBank || 'A';
@@ -54,7 +123,6 @@ function updateUIFromSettings(settings) {
         modeSwitchElement.dataset.mode = currentMode;
     }
 
-    // Update screen area class for color change
     if (screenAreaElement) {
         screenAreaElement.classList.toggle('screen-hold-mode', currentMode === 'hold');
     }
@@ -125,7 +193,13 @@ function saveSettingsToStorage(specificUpdate = null) {
                  console.error("[Options Save] SAVE FAILED:", chrome.runtime.lastError);
                  statusElement.textContent = 'Error saving settings!'; statusElement.style.color = 'red';
              } else {
-                 updateUIFromSettings(settingsToSave);
+                 if (!specificUpdate) {
+                    updateUIFromSettings(settingsToSave);
+                 } else {
+                     const padDiv = document.getElementById(`pad-${specificUpdate.key}`);
+                     padDiv?.classList.toggle('has-cue', settingsToSave.banks[currentSelectedBank].timestamps[specificUpdate.key] !== null);
+                 }
+
                  if(isInitialized){
                      statusElement.textContent = 'Saved.'; statusElement.style.color = 'green';
                      statusElement.style.opacity = '1';
@@ -188,8 +262,8 @@ function handleBankChange(event) {
     chrome.storage.local.get([settingsStorageKey], (result) => {
         const settings = result[settingsStorageKey] || getDefaultSettings();
         settings.selectedBank = newBank;
-        updateUIFromSettings(settings); // Update UI first to show correct mode for new bank
-        saveSettingsToStorage(); // Then save the change
+        updateUIFromSettings(settings);
+        saveSettingsToStorage();
     });
 }
 
@@ -236,14 +310,32 @@ function handleEnableToggle() {
     saveSettingsToStorage();
 }
 
+// Reverted validation logic for type="number"
 function handlePadInputChange(event) {
     const inputElement = event.target;
     const key = inputElement.dataset.key;
-    let value = inputElement.value;
+    let value = inputElement.value; // Value from number input
+
     if (!key || key === '0') return;
-    if (value !== '' && (isNaN(parseFloat(value)) || parseFloat(value) < 0)) { value = null; }
-    saveSettingsToStorage({ key: key, value: value });
+
+    // Basic check: Allow empty or non-negative numbers
+    // The browser + type=number handles preventing most non-numeric input
+    // We just need to ensure it's not negative if entered somehow
+    let finalValue = null;
+    if (value !== '') {
+        const num = parseFloat(value);
+        if (!isNaN(num) && num >= 0) {
+             finalValue = num; // Keep as number for saving logic
+        } else {
+            console.warn(`Invalid or negative input for Pad ${key}: ${value}. Clearing cue.`);
+            // Optionally clear the input visually if invalid
+            // inputElement.value = '';
+        }
+    }
+
+    saveSettingsToStorage({ key: key, value: finalValue });
 }
+
 
 function handlePadAdjustClick(event) {
     const button = event.target.closest('.pad-adjust');
@@ -256,7 +348,7 @@ function handlePadAdjustClick(event) {
     let currentValue = parseFloat(inputElement.value);
     if (isNaN(currentValue)) { currentValue = 0; }
     let newValue = Math.max(0, currentValue + delta);
-    newValue = parseFloat(newValue.toFixed(2));
+    newValue = parseFloat(newValue.toFixed(2)); // Keep rounding for consistency
     inputElement.value = newValue.toFixed(2);
     saveSettingsToStorage({ key: key, value: newValue });
 }
@@ -278,21 +370,24 @@ function handleModeSwitchClick(event) {
     const currentMode = track.dataset.mode;
     const newMode = (currentMode === '1shot') ? 'hold' : '1shot';
     track.dataset.mode = newMode;
-    // Update screen display immediately
     if (displayModeElement) {
         displayModeElement.textContent = newMode.toUpperCase();
     }
-    // Update screen area class immediately
     if (screenAreaElement) {
         screenAreaElement.classList.toggle('screen-hold-mode', newMode === 'hold');
     }
-    saveSettingsToStorage(); // Save the change
+    saveSettingsToStorage();
 }
 
 
 document.addEventListener('DOMContentLoaded', () => {
 
     restoreOptions();
+
+    document.addEventListener('mousemove', (event) => {
+        latestMouseX = event.clientX;
+        latestMouseY = event.clientY;
+    });
 
     document.getElementById('clear-all')?.addEventListener('click', handleClearAll);
     enableButtonElement?.addEventListener('click', handleEnableToggle);
@@ -302,6 +397,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     modeSwitchElement?.addEventListener('click', handleModeSwitchClick);
+
+    const tooltipTriggerContainer = document.querySelector('.mpc-container');
+
+    if (tooltipTriggerContainer && tooltipElement) {
+         tooltipTriggerContainer.addEventListener('mouseover', (event) => {
+            const target = event.target.closest('[data-tooltip]');
+            if (target) {
+                const tooltipText = target.dataset.tooltip;
+                if (tooltipText) {
+                     if (tooltipShowTimer) clearTimeout(tooltipShowTimer);
+                     tooltipShowTimer = setTimeout(() => {
+                        showTooltip(latestMouseX, latestMouseY, tooltipText);
+                        tooltipShowTimer = null;
+                     }, TOOLTIP_SHOW_DELAY_MS);
+                }
+            }
+         });
+
+         tooltipTriggerContainer.addEventListener('mouseout', (event) => {
+             const target = event.target.closest('[data-tooltip]');
+             if (target) {
+                 if (tooltipShowTimer) {
+                    clearTimeout(tooltipShowTimer);
+                    tooltipShowTimer = null;
+                 }
+                 hideTooltip();
+             }
+         });
+
+         document.addEventListener('click', (event) => {
+             if (!event.target.closest('[data-tooltip]') && tooltipElement.style.display === 'block') {
+                hideTooltip();
+             }
+         });
+    }
 
     const padArea = document.querySelector('.pad-area');
     if (padArea) {

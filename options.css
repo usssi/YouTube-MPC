@@ -44,6 +44,7 @@
     --tooltip-text: #e0e0e0;
     --pad-triggered-1shot-border: #00E676;
     --pad-triggered-hold-border: var(--switch-knob-hold-bg);
+    /* Removed bank editing vars */
 
     --base-font-size: 13px;
     --container-width: 520px;
@@ -243,7 +244,7 @@ body {
     gap: 8px;
 }
 .bank-button-container {
-    position: relative;
+    position: relative; /* Needed for positioning temp input */
     padding-top: var(--pad-label-height);
     min-width: 0;
 }
@@ -256,6 +257,29 @@ body {
     color: #fff;
     box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
 }
+
+/* Style for temporary input used for bank name editing */
+.temp-bank-name-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding: var(--button-padding);
+    margin: 0; /* Override default input margin */
+    border: 1px solid var(--button-active-border); /* Indicate editing */
+    border-radius: 3px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    text-align: center;
+    box-sizing: border-box; /* Include padding/border in size */
+    z-index: 2; /* Ensure it's above the button */
+    outline: none;
+}
+
 
 .pad-area { position: relative; }
 .pad-grid {

@@ -24,10 +24,15 @@ let padFlashTimers = {};
 let currentlyHeldPadKey = null;
 let stopPadFlashTimer = null;
 
+// Bank Naming Config
+const MAX_BANK_NAME_LENGTH = 6; // Reduced limit
+const MAX_SCREEN_BANK_NAME_LENGTH = 5; // Limit for screen display
+
+
 function getDefaultBankData() {
     const timestamps = {};
     for (let i = 1; i <= 9; i++) { timestamps[i.toString()] = null; }
-    return { timestamps: timestamps, mode: '1shot' };
+    return { timestamps: timestamps, mode: '1shot', name: null };
 }
 
 function getDefaultSettings() {
@@ -81,33 +86,53 @@ function sanitizeSettings(settings) {
         else {
             sanitized.banks[bankId].timestamps = sanitized.banks[bankId].timestamps || getDefaultBankData().timestamps;
             sanitized.banks[bankId].mode = sanitized.banks[bankId].mode || getDefaultBankData().mode;
+            sanitized.banks[bankId].name = sanitized.banks[bankId].name !== undefined ? sanitized.banks[bankId].name : null;
             delete sanitized.banks[bankId].timestamps['0'];
         }
     });
     return sanitized;
 }
 
+// --- Update UI - Handles bank name display ---
 function updateUIFromSettings(settings) {
     const cleanSettings = sanitizeSettings(settings);
     const selectedBank = cleanSettings.selectedBank;
-    currentSelectedBank = selectedBank;
-    const currentBankData = cleanSettings.banks[selectedBank];
+    currentSelectedBank = selectedBank; // Keep track locally
     const isEnabled = cleanSettings.isEnabled;
+    const currentBankData = cleanSettings.banks[selectedBank]; // Data for the currently selected bank
     const currentMode = currentBankData.mode;
+    const currentBankName = currentBankData.name; // Custom name (or null)
 
+    // Update Bank Buttons Text and Active State
+    bankButtons.forEach(btn => {
+        const bankId = btn.dataset.bank;
+        const bankData = cleanSettings.banks[bankId]; // Get data for THIS button's bank
+        const defaultName = `Bank ${bankId}`;
+        const displayName = bankData?.name || defaultName;
+        btn.textContent = displayName; // Update button text
+        btn.classList.toggle('active-bank', bankId === selectedBank);
+    });
+
+    // Update screen based on SELECTED bank's data
     if (enableButtonElement) {
         enableButtonElement.textContent = isEnabled ? 'ON' : 'OFF';
         enableButtonElement.classList.toggle('enabled-state', isEnabled);
         enableButtonElement.classList.toggle('disabled-state', !isEnabled);
     }
     if (displayStatusElement) { displayStatusElement.textContent = isEnabled ? 'ON' : 'OFF'; }
-    if (displayBankElement) { displayBankElement.textContent = selectedBank; }
+    // Update BANK display on screen
+    if (displayBankElement) {
+        if (currentBankName) { // If custom name exists, show it (truncated, uppercase)
+            displayBankElement.textContent = currentBankName.toUpperCase().slice(0, MAX_SCREEN_BANK_NAME_LENGTH);
+        } else { // Otherwise, show the default letter
+            displayBankElement.textContent = selectedBank;
+        }
+    }
     if (displayModeElement) { displayModeElement.textContent = currentMode.toUpperCase(); }
     if (modeSwitchElement) { modeSwitchElement.dataset.mode = currentMode; }
     if (screenAreaElement) { screenAreaElement.classList.toggle('screen-hold-mode', currentMode === 'hold'); }
 
-    bankButtons.forEach(btn => { btn.classList.toggle('active-bank', btn.dataset.bank === selectedBank); });
-
+    // Update Pads based on selected bank's data
     const timestampsData = currentBankData.timestamps;
     padElements.forEach(padDiv => {
         const key = padDiv.dataset.key;
@@ -122,20 +147,43 @@ function updateUIFromSettings(settings) {
     });
     document.getElementById('pad-0')?.classList.remove('stop-pad-triggered');
     currentlyHeldPadKey = null;
-    console.log("[Options UI] Updated UI from settings. Current Bank:", selectedBank, "Mode:", currentMode);
+    console.log("[Options UI] Updated UI. Displaying Bank:", selectedBank, "Mode:", currentMode);
 }
 
-// Modified save function to accept optional forcedisEnabled state
+
+// --- Save Bank Name Function ---
+async function saveBankName(bankId, newName) {
+     console.log(`Attempting to save name for Bank ${bankId}: "${newName}"`);
+     const nameToSave = (newName === null || newName.trim() === '') ? null : newName.trim().slice(0, MAX_BANK_NAME_LENGTH);
+
+     try {
+        // Use storage.local.get and set directly for simplicity here
+        chrome.storage.local.get([settingsStorageKey], (result) => {
+            if (chrome.runtime.lastError) { throw new Error(chrome.runtime.lastError); }
+            const settingsToSave = sanitizeSettings(result[settingsStorageKey]);
+            settingsToSave.banks[bankId].name = nameToSave;
+
+            chrome.storage.local.set({ [settingsStorageKey]: settingsToSave }, () => {
+                if (chrome.runtime.lastError) { throw new Error(chrome.runtime.lastError); }
+                console.log(`Bank ${bankId} name saved as:`, nameToSave);
+                statusElement.textContent = `Bank ${bankId} name updated.`; statusElement.style.color = 'green'; statusElement.style.opacity = '1';
+                setTimeout(() => { if (statusElement.textContent.includes('name updated')) statusElement.style.opacity = '0'; }, 1500);
+                // UI update is handled by the storage listener
+            });
+        });
+     } catch (error) {
+        console.error(`Error saving name for Bank ${bankId}:`, error);
+        statusElement.textContent = 'Error saving bank name!'; statusElement.style.color = 'red';
+     }
+}
+
+
 function saveSettingsToStorage(specificUpdate = null, forceIsEnabledState = null) {
-    if (!isInitialized && !specificUpdate && forceIsEnabledState === null) { return; } // Allow initial save, specific updates, or enable toggle
+    if (!isInitialized && !specificUpdate && forceIsEnabledState === null) { return; }
 
-    // Determine isEnabled state: use forced value if provided, otherwise read from button
-    const currentIsEnabled = (forceIsEnabledState !== null)
-        ? forceIsEnabledState
-        : (enableButtonElement?.classList.contains('enabled-state') ?? true);
-
+    const currentIsEnabled = (forceIsEnabledState !== null) ? forceIsEnabledState : (enableButtonElement?.classList.contains('enabled-state') ?? true);
     const currentMode = modeSwitchElement?.dataset.mode || '1shot';
-    const bankToUpdate = currentSelectedBank;
+    const bankToUpdate = currentSelectedBank; // Use internal state
 
     chrome.storage.local.get([settingsStorageKey], (result) => {
         if (chrome.runtime.lastError) { console.error("[Options Save] Read Error:", chrome.runtime.lastError); return; }
@@ -149,17 +197,19 @@ function saveSettingsToStorage(specificUpdate = null, forceIsEnabledState = null
              settingsToSave.banks[bankToUpdate].timestamps[specificUpdate.key] = finalValue;
         }
 
-        // Set isEnabled based on determined value (forced or from class)
         settingsToSave.isEnabled = currentIsEnabled;
         settingsToSave.selectedBank = bankToUpdate;
         settingsToSave.banks[bankToUpdate].mode = currentMode;
+        // Bank Name is saved separately by saveBankName
 
         chrome.storage.local.set({ [settingsStorageKey]: settingsToSave }, () => {
              if (chrome.runtime.lastError) { console.error("[Options Save] SAVE FAILED:", chrome.runtime.lastError); statusElement.textContent = 'Error saving settings!'; statusElement.style.color = 'red'; }
              else {
                  console.log("[Options Save] Settings saved successfully.");
-                 if(isInitialized){ statusElement.textContent = 'Saved.'; statusElement.style.color = 'green'; statusElement.style.opacity = '1'; setTimeout(() => { if (statusElement.textContent === 'Saved.') statusElement.style.opacity = '0'; }, 1500); }
-                 // Let storage listener handle final UI update
+                 if(isInitialized && !specificUpdate && forceIsEnabledState === null){ // Show saved only for non-specific updates initiated while initialized
+                    statusElement.textContent = 'Saved.'; statusElement.style.color = 'green'; statusElement.style.opacity = '1';
+                    setTimeout(() => { if (statusElement.textContent === 'Saved.') statusElement.style.opacity = '0'; }, 1500);
+                 }
              }
         });
     });
@@ -183,7 +233,7 @@ function restoreOptions() {
                });
            }
         }
-        updateUIFromSettings(settingsToUse);
+        updateUIFromSettings(settingsToUse); // Update UI with loaded/defaulted settings
         isInitialized = true;
         console.log("[Options Restore] Restore complete. Initialized.");
      });
@@ -193,7 +243,13 @@ function handleBankChange(event) {
     const newBank = event.currentTarget.dataset.bank;
     if (!isInitialized || !newBank || newBank === currentSelectedBank) { return; }
     currentSelectedBank = newBank;
-    saveSettingsToStorage();
+    // Update UI immediately to show correct state for the clicked bank
+    chrome.storage.local.get([settingsStorageKey], (result) => {
+        const settings = sanitizeSettings(result[settingsStorageKey]);
+        settings.selectedBank = newBank; // Reflect the intended selection for UI update
+        updateUIFromSettings(settings);
+        saveSettingsToStorage(); // Save the new selectedBank
+    });
 }
 
 function handleClearAll() {
@@ -217,15 +273,12 @@ function handleClearAll() {
     }
 }
 
-// Modified enable toggle handler
+
 function handleEnableToggle() {
     if (!isInitialized || !enableButtonElement) return;
-    // Determine the *new* state we want to save
     const currentIsEnabled = enableButtonElement.classList.contains('enabled-state');
     const newState = !currentIsEnabled;
-    // Don't update UI here directly
     console.log(`[Options Enable Toggle] Button clicked. Intending to set state to: ${newState}`);
-    // Call save, passing the desired new state explicitly
     saveSettingsToStorage(null, newState);
 }
 
@@ -254,18 +307,117 @@ function handlePadClearClick(event) {
 function handleModeSwitchClick(event) {
     if (!isInitialized) return;
     const track = event.currentTarget; const currentMode = track.dataset.mode; const newMode = (currentMode === '1shot') ? 'hold' : '1shot';
-    // Optimistically update UI
     track.dataset.mode = newMode; if (displayModeElement) { displayModeElement.textContent = newMode.toUpperCase(); } if (screenAreaElement) { screenAreaElement.classList.toggle('screen-hold-mode', newMode === 'hold'); }
-    // Save - reads mode from data attribute
     saveSettingsToStorage();
+}
+
+// --- Bank Name Editing Handlers ---
+let currentEditingBankBtn = null; // Track which button is being edited
+
+async function handleBankNameEdit(event) {
+    // Prevent editing if already editing another button
+    if (currentEditingBankBtn && currentEditingBankBtn !== event.currentTarget) {
+        currentEditingBankBtn.blur(); // Finish previous edit first
+    }
+    currentEditingBankBtn = event.currentTarget;
+    const button = event.currentTarget;
+    const bankId = button.dataset.bank;
+
+    // Get current custom name from storage to populate input correctly
+    const settings = sanitizeSettings(await chrome.storage.local.get([settingsStorageKey]))[settingsStorageKey];
+    const currentCustomName = settings.banks[bankId]?.name || ''; // Use empty string if null
+
+    // Create temporary input
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'temp-bank-name-input'; // For styling
+    input.value = currentCustomName; // Start with custom name or empty
+    input.maxLength = MAX_BANK_NAME_LENGTH;
+    input.spellcheck = false;
+    input.dataset.bankId = bankId; // Store bankId for saving
+    input.dataset.defaultName = `Bank ${bankId}`; // Store default name for revert/display
+
+    // Position input over button
+    const btnRect = button.getBoundingClientRect();
+    const containerRect = button.parentElement.getBoundingClientRect(); // Use parent container for relative pos
+    input.style.position = 'absolute';
+    input.style.top = `${button.offsetTop}px`;
+    input.style.left = `${button.offsetLeft}px`;
+    input.style.width = `${btnRect.width}px`;
+    input.style.height = `${btnRect.height}px`;
+    // Match font styles (may need more specific CSS rules)
+    input.style.fontSize = getComputedStyle(button).fontSize;
+    input.style.fontWeight = getComputedStyle(button).fontWeight;
+    input.style.textAlign = 'center';
+
+
+    // Hide button, show input
+    button.style.visibility = 'hidden'; // Use visibility to keep layout stable
+    button.parentElement.appendChild(input); // Add to container
+    input.focus();
+    input.select();
+
+    // Add listeners to input
+    input.addEventListener('blur', handleBankNameBlur, { once: true });
+    input.addEventListener('keydown', handleBankNameKeyDown);
+}
+
+function handleBankNameKeyDown(event) {
+    const input = event.currentTarget;
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        input.blur(); // Trigger save/cleanup
+    } else if (event.key === 'Escape') {
+        // Cancel edit: remove input, show button with original text (handled in blur cleanup)
+        input.value = 'ESCAPE_TRIGGERED'; // Use a special value to signal cancellation in blur
+        input.blur();
+    }
+}
+
+function handleBankNameBlur(event) {
+    const input = event.currentTarget;
+    const bankId = input.dataset.bankId;
+    const defaultName = input.dataset.defaultName;
+    const originalButton = document.getElementById(`bank-btn-${bankId.toLowerCase()}`); // Find original button
+
+    if (!originalButton) return; // Should not happen
+
+    const finalValue = input.value.trim();
+
+    // Remove input, show button
+    input.remove(); // Remove the temporary input
+    originalButton.style.visibility = 'visible'; // Make original button visible again
+    currentEditingBankBtn = null; // No longer editing
+
+    // Check if Escape was pressed
+    if (finalValue === 'ESCAPE_TRIGGERED') {
+        console.log(`Bank ${bankId} name edit cancelled.`);
+        // No need to save, updateUIFromSettings triggered by listener eventually will fix text if needed
+        // Or force update now? Let's rely on listener.
+        return;
+    }
+
+    // Determine name to save (null if empty, otherwise trimmed/limited value)
+    const nameToSave = (finalValue === '') ? null : finalValue.slice(0, MAX_BANK_NAME_LENGTH);
+
+    // Update button text immediately
+    originalButton.textContent = nameToSave || defaultName;
+
+    // Save the name
+    saveBankName(bankId, nameToSave);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     restoreOptions();
     document.addEventListener('mousemove', (event) => { latestMouseX = event.clientX; latestMouseY = event.clientY; });
     document.getElementById('clear-all')?.addEventListener('click', handleClearAll);
-    enableButtonElement?.addEventListener('click', handleEnableToggle); // Listener still attached
-    bankButtons.forEach(button => { button.addEventListener('click', handleBankChange); });
+    enableButtonElement?.addEventListener('click', handleEnableToggle);
+
+    bankButtons.forEach(button => {
+        button.addEventListener('click', handleBankChange); // Single click selects
+        button.addEventListener('dblclick', handleBankNameEdit); // Double click edits
+    });
+
     modeSwitchElement?.addEventListener('click', handleModeSwitchClick);
     const tooltipTriggerContainer = document.querySelector('.mpc-container');
     if (tooltipTriggerContainer && tooltipElement) {

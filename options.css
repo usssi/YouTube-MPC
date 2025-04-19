@@ -1,21 +1,15 @@
-/* Modify :root, screen-area, screen-label styles */
 :root {
     --bg-color: #282828;
     --container-bg: #353535;
     --panel-bg: #404040;
-    /* Screen Default (Green) */
     --screen-bg: #1a251a;
-    --screen-border: #101a10;
     --screen-text: #88dd88;
     --screen-label: #5c7a5c;
-    --screen-text-shadow: rgba(144, 238, 144, 0.4);
-    /* Screen Hold Mode (Yellow) */
-    --screen-hold-bg-color: #2b2918; /* Dark desaturated yellow */
-    --screen-hold-border-color: #44412a; /* Darker yellow border */
-    --screen-hold-text-color: #FFD600; /* Yellow text (same as knob) */
-    --screen-hold-label-color: #FFF59D; /* Lighter yellow label */
-    --screen-hold-text-shadow: rgba(255, 214, 0, 0.4); /* Yellowish shadow */
-
+    --screen-hold-bg-color: #2b2918;
+    --screen-hold-border-color: #44412a;
+    --screen-hold-text-color: #FFD600;
+    --screen-hold-label-color: #FFF59D;
+    --screen-hold-text-shadow: rgba(255, 214, 0, 0.4);
     --pad-bg: #303030;
     --pad-bg-has-cue: #454545;
     --pad-border: #1a1a1a;
@@ -41,8 +35,10 @@
     --clear-button-color: #ff8a80;
     --clear-button-hover-color: #ff5252;
     --switch-bg: #2a2a2a;
-    --switch-knob-1shot-bg: var(--screen-text); /* Green */
-    --switch-knob-hold-bg: var(--screen-hold-text-color); /* Yellow */
+    --switch-knob-1shot-bg: var(--screen-text);
+    --switch-knob-hold-bg: var(--screen-hold-text-color);
+    --stop-pad-bg: #a04040;
+    --stop-pad-border: #6b2b2b;
 
     --base-font-size: 13px;
     --container-width: 520px;
@@ -104,10 +100,9 @@ body {
     min-width: 0;
 }
 
-/* Screen Area & Text Styles */
 .screen-area {
-    background-color: var(--screen-bg); /* Default BG */
-    border: 1px solid var(--screen-border); /* Default Border */
+    background-color: var(--screen-bg);
+    border: 1px solid var(--screen-border);
     border-radius: 4px;
     padding: 8px 10px;
     font-family: 'Consolas', 'Monaco', monospace;
@@ -115,35 +110,33 @@ body {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out; /* Transition */
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
 }
 .screen-section {
     text-align: center;
 }
 .screen-label {
     font-size: var(--label-font-size);
-    color: var(--screen-label); /* Default Label Color */
+    color: var(--screen-label);
     text-transform: uppercase;
     margin-bottom: 0;
     letter-spacing: 0.5px;
     line-height: 1.1;
-    transition: color 0.2s ease-in-out; /* Transition */
+    transition: color 0.2s ease-in-out;
 }
 .screen-text {
     font-size: var(--screen-font-size);
     font-weight: bold;
-    color: var(--screen-text); /* Default Text Color */
+    color: var(--screen-text);
     min-height: 1.1em;
-    text-shadow: 0 0 2px var(--screen-text-shadow); /* Default Shadow */
+    text-shadow: 0 0 2px var(--screen-text-shadow);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.2;
     text-transform: uppercase;
-    transition: color 0.2s ease-in-out, text-shadow 0.2s ease-in-out; /* Transition */
+    transition: color 0.2s ease-in-out, text-shadow 0.2s ease-in-out;
 }
-
-/* Screen colors for Hold Mode */
 .screen-area.screen-hold-mode {
     background-color: var(--screen-hold-bg-color);
     border-color: var(--screen-hold-border-color);
@@ -157,7 +150,6 @@ body {
 }
 
 
-/* Mode Selection Styles */
 .mode-selection {
     margin-top: 5px;
     padding: 5px 10px;
@@ -176,7 +168,7 @@ body {
     align-items: center;
     justify-content: center;
 }
-.mode-switch.horizontal { /* The track */
+.mode-switch.horizontal {
     width: 42px;
     height: 20px;
     background-color: var(--switch-bg);
@@ -196,22 +188,18 @@ body {
     top: 1px;
     transition: left 0.2s ease-in-out, background-color 0.2s ease-in-out;
 }
-/* Knob Positions & Colors */
 .mode-switch.horizontal[data-mode="1shot"] .mode-switch-knob {
     left: 2px;
-    background-color: var(--switch-knob-1shot-bg); /* Green */
+    background-color: var(--switch-knob-1shot-bg);
 }
 .mode-switch.horizontal[data-mode="hold"] .mode-switch-knob {
-    left: 22px; /* Adjusted for new track width */
-    background-color: var(--switch-knob-hold-bg); /* Yellow */
+    left: 22px;
+    background-color: var(--switch-knob-hold-bg);
 }
-
 .mode-label-text {
     display: none;
 }
 
-
-/* ... Other existing styles ... */
 .control-buttons {
     margin-top: auto;
     padding-top: 10px;
@@ -265,13 +253,18 @@ body {
 }
 
 .pad-area { position: relative; }
-.pad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap); margin-bottom: var(--gap); }
+.pad-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--gap);
+}
 
 .pad-container {
     position: relative;
     padding-top: var(--pad-label-height);
     min-width: 0;
 }
+
 .pad-label {
     position: absolute;
     top: 0px;
@@ -309,16 +302,19 @@ body {
     opacity: 1;
 }
 .mpc-pad:not(.has-cue) {
+    /* Default styles for inactive pads (dimmed, default colors) */
+    /* These might conflict with .stop-pad, hence !important needed there */
     opacity: var(--pad-disabled-opacity);
     background-color: var(--pad-bg);
     border-color: var(--pad-border);
     color: var(--pad-text);
 }
 
-.mpc-pad:not(.has-cue) > * {
+/* Color inheritance needs careful handling */
+.mpc-pad:not(.has-cue) > *:not(.stop-pad *) { /* Apply to children, except within stop-pad */
     color: var(--pad-text);
 }
-.mpc-pad.has-cue > * {
+.mpc-pad.has-cue > *:not(.stop-pad *) {
      color: var(--pad-text-has-cue);
 }
 .mpc-pad:not(.has-cue) .pad-right-column > * {
@@ -452,34 +448,37 @@ body {
     opacity: 0.5;
 }
 
-
-.stop-button-container {
-    display: flex;
-    justify-content: flex-start;
-    padding-left: 0;
-    position: relative;
-    padding-top: var(--pad-label-height);
-}
-
-.stop-button {
-    width: calc( (var(--pad-size) * 2) + var(--gap) );
+/* Styles for the Stop Pad (Numpad 0) */
+.stop-pad {
     height: calc(var(--pad-size) / 2);
-    background-color: #a04040;
-    border-color: #6b2b2b;
-    color: #ffffff;
+    width: 100%;
+    /* Force styles using !important to override .mpc-pad:not(.has-cue) */
+    background-color: var(--stop-pad-bg) !important;
+    border-color: var(--stop-pad-border) !important;
+    color: #ffffff !important;
+    opacity: 1 !important;
+    /* Styling */
     font-weight: bold;
     font-size: 1em;
-    flex-grow: 0;
-    flex-shrink: 0;
+    /* Alignment & Behavior */
+    justify-content: center;
+    align-items: center;
+    cursor: default;
+    /* Inherited base styles from .mpc-pad */
+    display: flex;
+    box-sizing: border-box;
+    padding: 4px 6px;
+    border-radius: 4px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
 }
-.stop-button:hover {
-    background-color: #b84a4a;
-    filter: brightness(1.1);
+.stop-pad span {
+    text-align: center;
 }
-.stop-button:active {
-    background-color: #8a3a3a;
-    filter: brightness(0.9);
+.stop-pad:hover, .stop-pad:active {
+    filter: none;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.4); /* Maintain shadow */
 }
+
 
 .status-message {
     margin-top: var(--gap); font-weight: 500; min-height: 1em;

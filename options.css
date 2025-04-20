@@ -29,6 +29,8 @@
     --text-color: #d0d0d0;
     --input-bg: #252525;
     --input-border: #444444;
+    --input-bg-transparent: transparent;
+    --input-border-transparent: transparent;
     --status-saved: #66bb6a;
     --status-error: #ef5350;
     --status-info: #42a5f5;
@@ -46,6 +48,7 @@
     --pad-triggered-hold-border: var(--switch-knob-hold-bg);
     --signature-color: #888;
 
+    /* Base Layout & Sizing */
     --base-font-size: 13px;
     --container-width: 520px;
     --padding: 15px;
@@ -53,9 +56,23 @@
     --pad-size: 60px;
     --button-padding: 6px 10px;
     --screen-font-size: 1.1em;
-    --label-font-size: 0.65em;
+    --label-font-size: 0.7em;
     --pad-label-font-size: 0.7em;
-    --pad-label-height: 12px;
+    --pad-label-height: 15px;
+    --pad-name-height: 16px;
+
+    /* --- CUSTOMIZABLE UI TWEAKS --- */
+    --pad-name-font-size: 1em;       /* Font size for individual pad names */
+    --seconds-suffix-font-size: 1em; /* Font size for the 's' next to time */
+    --clear-button-font-size: 0.9em;    /* Font size for the 'x' clear button */
+    --clear-button-h-padding: 2px;      /* Horizontal padding for 'x' button */
+    --clear-button-margin-right: 4px;   /* Space after 'x' button */
+    --pad-right-column-margin-left: -10px; /* Space before '+ s -' column */
+    --pad-adjust-h-padding: 6px;        /* Horizontal padding for '+' and '-' buttons */
+    --signature-bottom: 15px;           /* Signature distance from bottom */
+    --signature-right: 20px;            /* Signature distance from right */
+    --signature-font-size: 1.25em;      /* Signature font size */
+    /* --- END CUSTOMIZABLE UI TWEAKS --- */
 }
 
 body {
@@ -92,17 +109,17 @@ body {
 .mpc-header h1#main-title {
     margin: 0;
     font-size: 1.2em;
-    font-family: "Orbitron", sans-serif; /* Apply Orbitron */
-    font-weight: 700; /* Use a bolder weight */
-    font-optical-sizing: auto; /* Recommended for variable fonts */
-    font-style: normal; /* Ensure normal style */
+    font-family: "Orbitron", sans-serif;
+    font-weight: 700;
+    font-optical-sizing: auto;
+    font-style: normal;
 }
 
 .main-interface {
     display: grid;
     grid-template-columns: .5fr 2fr;
     gap: var(--gap);
-    margin-bottom: 20px;
+    margin-bottom: 25px;
 }
 
 .left-panel, .right-panel {
@@ -346,16 +363,15 @@ body {
     border: 1px solid var(--pad-border);
     border-radius: 4px;
     color: var(--pad-text);
-    font-size: 0.9em;
-    font-weight: bold;
     font-family: 'Consolas', 'Monaco', monospace;
-    display: flex;
-    align-items: center;
+    display: block;
     box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
     transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease, opacity 0.1s ease;
     padding: 4px 6px;
     box-sizing: border-box;
     min-width: 0;
+    position: relative;
+    padding-top: calc(var(--pad-name-height) + 4px);
 }
 
 .mpc-pad.has-cue {
@@ -371,126 +387,201 @@ body {
     color: var(--pad-text);
 }
 
-.mpc-pad:not(.has-cue) > *:not(.stop-pad *) {
+.pad-name-display {
+    position: absolute;
+    top: 4px;          /* Adjust vertical position slightly if needed */
+    left: 4px;          /* Adjust horizontal start */
+    width: calc(100% - 8px); /* Span across pad width minus padding */
+    box-sizing: border-box; /* Include padding in width */
+    font-size: var(--pad-name-font-size);
+    font-weight: normal;
     color: var(--pad-text);
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1;     /* Adjust line height for padding */
+    height: calc(var(--pad-name-height) - 1px); /* Adjust height for padding */
+    max-width: calc(100% - 8px); /* Ensure it doesn't overflow */
+    cursor: text;
+
+    /* --- NEW PROPERTIES --- */
+    background-color: #3b3b3b; /* Darker background */
+    padding: 1px 4px;                 /* Small vertical and horizontal padding */
+    border-radius: 2px;               /* Slightly rounded corners */
+    z-index: 0;                       /* Ensure it's above potential pseudo-elements */
+    /* --- END NEW --- */
 }
-.mpc-pad.has-cue > *:not(.stop-pad *) {
+
+.mpc-pad.has-cue .pad-name-display {
      color: var(--pad-text-has-cue);
 }
-.mpc-pad:not(.has-cue) .pad-right-column > * {
+
+.pad-name-input {
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    width: calc(100% - 8px);
+    height: calc(var(--pad-name-height) + 2px);
+    font-size: var(--pad-name-font-size);
+    font-family: inherit;
+    border: 1px solid var(--input-border);
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    padding: 0 3px;
+    box-sizing: border-box;
+    outline: none;
+    z-index: 10;
+    display: none;
+}
+
+.pad-controls {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+    position: absolute;
+    top: calc(var(--pad-name-height) + 6px); /* <-- Increased value shifts down */
+    bottom: 4px;
+    left: 6px;
+    right: 6px;
+    height: auto;
+    z-index: 1;
+}
+
+.mpc-pad:not(.has-cue) .pad-controls > *:not(.stop-pad *) {
+}
+.mpc-pad.has-cue .pad-controls > *:not(.stop-pad *) {
+}
+.mpc-pad:not(.has-cue) .pad-controls .pad-right-column > * {
     color: var(--pad-text);
 }
-.mpc-pad.has-cue .pad-right-column > * {
+.mpc-pad.has-cue .pad-controls .pad-right-column > * {
     color: var(--pad-text-has-cue);
+    opacity: 0.7;
+
 }
 
-
-.pad-clear-button {
+.pad-controls .pad-clear-button {
     background: none;
     border: none;
     color: inherit;
-    font-size: 1.1em;
+    font-size: var(--clear-button-font-size);
     line-height: 1;
     cursor: pointer;
-    padding: 0 4px;
-    margin-right: 4px;
+    padding: 0 var(--clear-button-h-padding); /* Use variable */
+    margin-right: var(--clear-button-margin-right); /* Use variable */
     user-select: none;
     flex-shrink: 0;
-    align-self: stretch;
+    align-self: center;
+    transition: color 0.15s ease, opacity 0.15s ease;
     display: flex;
     align-items: center;
-    justify-content: center;
-    transition: color 0.15s ease, opacity 0.15s ease;
 }
 
-.mpc-pad.has-cue .pad-clear-button {
+.mpc-pad.has-cue .pad-controls .pad-clear-button {
     color: var(--clear-button-color);
 }
-.mpc-pad.has-cue .pad-clear-button:hover {
+.mpc-pad.has-cue .pad-controls .pad-clear-button:hover {
     color: var(--clear-button-hover-color);
     opacity: 1.0;
 }
 
-.mpc-pad:not(.has-cue) .pad-clear-button:hover {
+.mpc-pad:not(.has-cue) .pad-controls .pad-clear-button:hover {
     opacity: 0.7;
 }
-.mpc-pad:not(.has-cue) .pad-clear-button:active {
+.mpc-pad:not(.has-cue) .pad-controls .pad-clear-button:active {
     opacity: 0.5;
 }
-.mpc-pad.has-cue .pad-clear-button:active {
+.mpc-pad.has-cue .pad-controls .pad-clear-button:active {
     opacity: 0.5;
 }
 
-
-.pad-input {
+.pad-controls .pad-input {
     flex-grow: 1;
     flex-shrink: 1;
-    background-color: var(--input-bg);
-    border: 1px solid var(--input-border);
+    border: 1px solid var(--input-border-transparent);
+    background-color: rgba(37, 37, 37, 0.3);
     border-radius: 3px;
-    color: inherit;
-    font-size: 1.1em;
+    color: #c1c1c1; /* Default text color = Medium Grey */
+    font-size: 1em;
     font-family: inherit;
     font-weight: bold;
-    text-align: right;
+    text-align: center;
     padding: 2px 4px;
     outline: none;
     -moz-appearance: textfield;
-    height: 25px;
+    height: 15px;
     margin-left: 0;
     margin-right: 0;
     min-width: 0;
     align-self: center;
+    transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease;
+    cursor: text;
 }
-.pad-input::-webkit-outer-spin-button,
-.pad-input::-webkit-inner-spin-button {
+
+.pad-controls .pad-input:focus,
+.pad-controls .pad-input.editing {
+    border: 1px solid var(--input-border);
+    background-color: var(--input-bg);
+    cursor: text;
+    color: #f5f5f5; /* Color when editing: Bright White */
+}
+
+.pad-controls .pad-input::-webkit-outer-spin-button,
+.pad-controls .pad-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-.pad-input::placeholder {
-    color: var(--pad-text);
-    opacity: 0.6;
+.pad-controls .pad-input::placeholder {
+    color: #888888; /* Placeholder color: Dim Grey */
+    opacity: 1; /* Ensure color is used directly, not dimmed further */
     font-weight: normal;
     font-size: 1em;
+    text-align: center;
 }
-.mpc-pad:not(.has-cue) .pad-input::placeholder {
+
+.mpc-pad:not(.has-cue) .pad-controls .pad-input::placeholder {
     color: var(--pad-text);
 }
-.mpc-pad.has-cue .pad-input::placeholder {
+.mpc-pad.has-cue .pad-controls .pad-input::placeholder {
     color: var(--pad-text-has-cue);
 }
 
-.pad-right-column {
+.pad-controls .pad-right-column {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    margin-left: 2px;
+    justify-content: center;
+    margin-left: var(--pad-right-column-margin-left); /* Use variable */
     flex-shrink: 0;
-    height: 100%;
+      height: 100%;
     box-sizing: border-box;
-    padding: 1px 0;
+    padding: 1px 10px;
 }
 
-.pad-right-column .seconds-suffix {
-    font-size: 0.9em;
+.pad-controls .pad-right-column .seconds-suffix {
+    font-size: var(--seconds-suffix-font-size) +.1;
+    font-weight: bold;
     padding: 0 2px;
+    margin: 0; /* <-- Add margin 0 */
+
     user-select: none;
     color: inherit;
-    line-height: 1.1;
+    line-height: .75;
     text-align: center;
     flex-shrink: 0;
 }
 
-.pad-right-column .pad-adjust {
+.pad-controls .pad-right-column .pad-adjust {
     background: none;
     border: none;
     color: inherit;
-    font-size: 1.1em;
+    font-size: 1em;
     font-weight: bold;
     line-height: 1;
     cursor: pointer;
-    padding: 0 2px;
+    padding: 0px var(--pad-adjust-h-padding); /* Use variable */
     margin: 0;
     user-select: none;
     display: flex;
@@ -501,10 +592,10 @@ body {
     min-width: 1em;
 }
 
-.pad-right-column .pad-adjust:hover {
-    opacity: 0.7;
+.pad-controls .pad-right-column .pad-adjust:hover {
+    opacity: 1;
 }
-.pad-right-column .pad-adjust:active {
+.pad-controls .pad-right-column .pad-adjust:active {
     opacity: 0.5;
 }
 
@@ -526,6 +617,8 @@ body {
     border-radius: 4px;
     box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
     transition: border-color 0.1s ease;
+    position: static;
+    margin-top: 0;
 }
 .stop-pad span {
     text-align: center;
@@ -577,9 +670,9 @@ body {
 
 #signature {
     position: absolute;
-    bottom: 15px;
-    right: 20px;
-    font-size: 1.25em; /* Increased size */
+    bottom: var(--signature-bottom); /* Use variable */
+    right: var(--signature-right); /* Use variable */
+    font-size: var(--signature-font-size); /* Use variable */
     color: var(--signature-color);
     opacity: 0.7;
     user-select: none;

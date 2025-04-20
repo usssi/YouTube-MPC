@@ -27,12 +27,30 @@ let stopPadFlashTimer = null;
 
 const MAX_BANK_NAME_LENGTH = 6;
 const MAX_SCREEN_BANK_NAME_LENGTH = 5;
+const MAX_PAD_NAME_LENGTH = 12;
+const MAX_TIME_INPUT_LENGTH = 8;
+const MAX_TIME_VALUE = 99999.99;
 
+let currentEditingPadInput = null;
+
+
+function getDefaultPadNames() {
+    const names = {};
+    for (let i = 1; i <= 9; i++) {
+        names[i.toString()] = `PAD ${i}`;
+    }
+    return names;
+}
 
 function getDefaultBankData() {
     const timestamps = {};
     for (let i = 1; i <= 9; i++) { timestamps[i.toString()] = null; }
-    return { timestamps: timestamps, mode: '1shot', name: null };
+    return {
+        timestamps: timestamps,
+        mode: '1shot',
+        name: null,
+        padNames: getDefaultPadNames()
+    };
 }
 
 function getDefaultSettings() {
@@ -81,26 +99,41 @@ function sanitizeSettings(settings) {
     sanitized.isEnabled = (typeof sanitized.isEnabled === 'boolean') ? sanitized.isEnabled : true;
     sanitized.selectedBank = ['A', 'B', 'C', 'D'].includes(sanitized.selectedBank) ? sanitized.selectedBank : 'A';
     sanitized.banks = sanitized.banks || {};
+    const defaultPadNames = getDefaultPadNames();
+
     ['A', 'B', 'C', 'D'].forEach(bankId => {
-        if (!sanitized.banks[bankId]) { sanitized.banks[bankId] = getDefaultBankData(); }
-        else {
+        if (!sanitized.banks[bankId]) {
+            sanitized.banks[bankId] = getDefaultBankData();
+        } else {
             sanitized.banks[bankId].timestamps = sanitized.banks[bankId].timestamps || getDefaultBankData().timestamps;
             sanitized.banks[bankId].mode = ['1shot', 'hold'].includes(sanitized.banks[bankId].mode) ? sanitized.banks[bankId].mode : '1shot';
             sanitized.banks[bankId].name = sanitized.banks[bankId].name !== undefined ? sanitized.banks[bankId].name : null;
+            sanitized.banks[bankId].padNames = sanitized.banks[bankId].padNames || defaultPadNames;
 
-            const defaultTimestamps = getDefaultBankData().timestamps;
             const currentTimestamps = sanitized.banks[bankId].timestamps;
             const finalTimestamps = {};
             for (let i = 1; i <= 9; i++) {
                 const key = i.toString();
-                const value = currentTimestamps ? currentTimestamps[key] : null;
-                 if (value !== null && value !== undefined && !isNaN(parseFloat(value)) && parseFloat(value) >= 0) {
-                     finalTimestamps[key] = parseFloat(parseFloat(value).toFixed(2));
+                let value = currentTimestamps ? currentTimestamps[key] : null;
+                 if (value !== null && value !== undefined && !isNaN(parseFloat(value))) {
+                     let numValue = parseFloat(value);
+                     if (numValue < 0) numValue = 0;
+                     if (numValue > MAX_TIME_VALUE) numValue = MAX_TIME_VALUE;
+                     finalTimestamps[key] = parseFloat(numValue.toFixed(2));
                  } else {
                      finalTimestamps[key] = null;
                  }
             }
-             sanitized.banks[bankId].timestamps = finalTimestamps;
+            sanitized.banks[bankId].timestamps = finalTimestamps;
+
+            const currentPadNames = sanitized.banks[bankId].padNames;
+            const finalPadNames = {};
+             for (let i = 1; i <= 9; i++) {
+                const key = i.toString();
+                const name = currentPadNames ? String(currentPadNames[key] || '').trim() : '';
+                finalPadNames[key] = name.slice(0, MAX_PAD_NAME_LENGTH) || defaultPadNames[key];
+             }
+             sanitized.banks[bankId].padNames = finalPadNames;
         }
     });
     return sanitized;
@@ -132,8 +165,7 @@ function updateUIFromSettings(settings) {
     const currentBankData = cleanSettings.banks[selectedBank];
     const currentMode = currentBankData.mode;
     const currentBankName = currentBankData.name;
-
-    // Title is now static in HTML, no dynamic update needed here
+    const currentPadNames = currentBankData.padNames;
 
     bankButtons.forEach(btn => {
         const bankId = btn.dataset.bank;
@@ -143,7 +175,6 @@ function updateUIFromSettings(settings) {
         btn.textContent = displayName;
         btn.classList.toggle('active-bank', bankId === selectedBank);
     });
-
 
     if (enableButtonElement) {
         enableButtonElement.textContent = isEnabled ? 'ON' : 'OFF';
@@ -163,17 +194,30 @@ function updateUIFromSettings(settings) {
     if (modeSwitchElement) { modeSwitchElement.dataset.mode = currentMode; }
     if (screenAreaElement) { screenAreaElement.classList.toggle('screen-hold-mode', currentMode === 'hold'); }
 
-
     const timestampsData = currentBankData.timestamps;
     padElements.forEach(padDiv => {
         const key = padDiv.dataset.key;
+        if (!key || key === '0') return;
+
         const inputElement = padDiv.querySelector('.pad-input');
-        if (key !== undefined && inputElement) {
+        const nameDisplayElement = padDiv.querySelector('.pad-name-display');
+        const nameInputElement = padDiv.querySelector('.pad-name-input');
+
+        if (inputElement) {
             const time = timestampsData[key];
             const hasCue = (time !== null && time !== undefined && !isNaN(time));
             inputElement.value = hasCue ? parseFloat(time).toFixed(2) : '';
             padDiv.classList.toggle('has-cue', hasCue);
             padDiv.classList.remove('pad-triggered-1shot', 'pad-triggered-hold');
+        }
+        if (nameDisplayElement) {
+            nameDisplayElement.textContent = currentPadNames[key] || `PAD ${key}`;
+            nameDisplayElement.style.display = 'block';
+        }
+         if (nameInputElement) {
+            nameInputElement.value = currentPadNames[key] || `PAD ${key}`;
+            nameInputElement.style.display = 'none';
+            nameInputElement.maxLength = MAX_PAD_NAME_LENGTH;
         }
     });
     document.getElementById('pad-0')?.classList.remove('stop-pad-triggered');
@@ -181,21 +225,25 @@ function updateUIFromSettings(settings) {
     console.log("[Options UI] Updated UI. Displaying Bank:", selectedBank, "Mode:", currentMode);
 }
 
-
 async function saveBankName(bankId, newName) {
-      console.log(`Attempting to save name for Bank ${bankId}: "${newName}"`);
+      console.log(`Attempting to save name for Bank <span class="math-inline">\{bankId\}\: "</span>{newName}"`);
       const nameToSave = (newName === null || newName.trim() === '') ? null : newName.trim().slice(0, MAX_BANK_NAME_LENGTH);
 
       try {
           chrome.storage.local.get([settingsStorageKey], (result) => {
               if (chrome.runtime.lastError) { throw new Error(chrome.runtime.lastError); }
               const settingsToSave = sanitizeSettings(result[settingsStorageKey]);
+              if(settingsToSave.banks[bankId].name === nameToSave && !(newName === null && settingsToSave.banks[bankId].name !== null) ) {
+                  console.log("Bank name unchanged, skipping save.");
+                  return;
+              }
+
               settingsToSave.banks[bankId].name = nameToSave;
 
               chrome.storage.local.set({ [settingsStorageKey]: settingsToSave }, () => {
                   if (chrome.runtime.lastError) { throw new Error(chrome.runtime.lastError); }
                   console.log(`Bank ${bankId} name saved as:`, nameToSave);
-                  // showSavedStatus(); // Let saveSettingsToStorage handle feedback
+                  showSavedStatus();
               });
           });
        } catch (error) {
@@ -204,6 +252,35 @@ async function saveBankName(bankId, newName) {
        }
 }
 
+async function savePadName(bankKey, padKey, newName) {
+    const nameToSave = (newName || '').trim().slice(0, MAX_PAD_NAME_LENGTH) || `PAD ${padKey}`;
+    console.log(`Attempting to save name for Bank ${bankKey}, Pad <span class="math-inline">\{padKey\}\: "</span>{nameToSave}"`);
+
+     try {
+          const result = await chrome.storage.local.get([settingsStorageKey]);
+          const settingsToSave = sanitizeSettings(result[settingsStorageKey]);
+
+          if(!settingsToSave.banks[bankKey] || !settingsToSave.banks[bankKey].padNames) {
+              console.error("Bank or padNames structure missing during savePadName");
+              return;
+          }
+
+          if(settingsToSave.banks[bankKey].padNames[padKey] === nameToSave) {
+              console.log("Pad name unchanged, skipping save.");
+              return;
+          }
+
+          settingsToSave.banks[bankKey].padNames[padKey] = nameToSave;
+
+          await chrome.storage.local.set({ [settingsStorageKey]: settingsToSave });
+          console.log(`Pad ${padKey} name saved as:`, nameToSave);
+          showSavedStatus();
+
+       } catch (error) {
+           console.error(`Error saving pad name for Bank ${bankKey}, Pad ${padKey}:`, error);
+           statusElement.textContent = 'Error saving pad name!'; statusElement.style.color = 'red'; statusElement.style.opacity = '1';
+       }
+}
 
 function saveSettingsToStorage(specificUpdate = null, forceIsEnabledState = null) {
     if (!isInitialized && !specificUpdate && forceIsEnabledState === null) {
@@ -220,36 +297,46 @@ function saveSettingsToStorage(specificUpdate = null, forceIsEnabledState = null
         const settingsToSave = sanitizeSettings(result[settingsStorageKey]);
 
         let requiresSave = false;
+        let changeDescription = "";
 
-        if (specificUpdate && specificUpdate.key !== undefined && specificUpdate.key !== null && specificUpdate.key !== '0') {
+        if (specificUpdate && specificUpdate.type === 'padTime' && specificUpdate.key !== undefined && specificUpdate.key !== null && specificUpdate.key !== '0') {
              settingsToSave.banks[bankToUpdate].timestamps = settingsToSave.banks[bankToUpdate].timestamps || {};
              let finalValue = null;
-             if(specificUpdate.value !== null && specificUpdate.value !== '' && !isNaN(parseFloat(specificUpdate.value)) && parseFloat(specificUpdate.value) >= 0){ finalValue = parseFloat(parseFloat(specificUpdate.value).toFixed(2)); }
-             else { finalValue = null; }
+             const numValue = parseFloat(specificUpdate.value);
+             if(specificUpdate.value !== null && !isNaN(numValue) && numValue >= 0) {
+                 let cappedValue = Math.min(numValue, MAX_TIME_VALUE);
+                 finalValue = parseFloat(cappedValue.toFixed(2));
+             } else {
+                 finalValue = null;
+             }
+
              if(settingsToSave.banks[bankToUpdate].timestamps[specificUpdate.key] !== finalValue) {
                 settingsToSave.banks[bankToUpdate].timestamps[specificUpdate.key] = finalValue;
                 requiresSave = true;
+                changeDescription = `Pad ${specificUpdate.key} timestamp`;
              }
-        } else {
-            requiresSave = true; // Assume non-specific updates always require save check
+        } else if (specificUpdate === null) {
+            if (settingsToSave.isEnabled !== currentIsEnabled) {
+                settingsToSave.isEnabled = currentIsEnabled;
+                requiresSave = true;
+                 changeDescription = "Enable state";
+            }
+             if (settingsToSave.selectedBank !== bankToUpdate) {
+                settingsToSave.selectedBank = bankToUpdate;
+                requiresSave = true;
+                 changeDescription = "Selected bank";
+            }
+             if (!settingsToSave.banks[bankToUpdate] || settingsToSave.banks[bankToUpdate].mode !== currentMode) {
+                 if(!settingsToSave.banks[bankToUpdate]) settingsToSave.banks[bankToUpdate] = getDefaultBankData();
+                 settingsToSave.banks[bankToUpdate].mode = currentMode;
+                 requiresSave = true;
+                 changeDescription = `Bank ${bankToUpdate} mode`;
+             }
+        } else if (specificUpdate && specificUpdate.type !== 'padTime') {
+             console.log("Unknown specificUpdate type in saveSettingsToStorage:", specificUpdate.type);
         }
 
-
-        if (settingsToSave.isEnabled !== currentIsEnabled) {
-            settingsToSave.isEnabled = currentIsEnabled;
-            requiresSave = true;
-        }
-         if (settingsToSave.selectedBank !== bankToUpdate) {
-            settingsToSave.selectedBank = bankToUpdate;
-            requiresSave = true;
-        }
-         if (!settingsToSave.banks[bankToUpdate] || settingsToSave.banks[bankToUpdate].mode !== currentMode) {
-             if(!settingsToSave.banks[bankToUpdate]) settingsToSave.banks[bankToUpdate] = getDefaultBankData(); // Should be handled by sanitize but belt-and-suspenders
-             settingsToSave.banks[bankToUpdate].mode = currentMode;
-             requiresSave = true;
-         }
-
-        if (!requiresSave && !(specificUpdate && specificUpdate.key !== undefined)) {
+        if (!requiresSave) {
              console.log("[Options Save] No changes detected, skipping save.");
              return;
         }
@@ -261,7 +348,7 @@ function saveSettingsToStorage(specificUpdate = null, forceIsEnabledState = null
                  statusElement.style.color = 'red';
                  statusElement.style.opacity = '1';
              } else {
-                 console.log("[Options Save] Settings saved successfully via saveSettingsToStorage.");
+                 console.log(`[Options Save] Settings saved successfully via saveSettingsToStorage. Change: ${changeDescription || 'Unknown/Multiple'}`);
                  if (isInitialized) {
                       showSavedStatus();
                  }
@@ -269,7 +356,6 @@ function saveSettingsToStorage(specificUpdate = null, forceIsEnabledState = null
         });
     });
 }
-
 
 function restoreOptions() {
     isInitialized = false;
@@ -280,15 +366,15 @@ function restoreOptions() {
         else {
            const loadedSettings = result[settingsStorageKey];
            settingsToUse = sanitizeSettings(loadedSettings);
-           if (!loadedSettings || !loadedSettings.banks || !loadedSettings.selectedBank || !loadedSettings.isEnabled) {
+           if (!loadedSettings || !loadedSettings.banks || !loadedSettings.selectedBank || typeof loadedSettings.isEnabled === 'undefined') {
                 statusElement.textContent = 'Initializing default settings...'; statusElement.style.color = 'orange'; statusElement.style.opacity = '1';
                 chrome.storage.local.set({ [settingsStorageKey]: settingsToUse }, () => {
-                    isInitialized = true; // Set initialized here after potential save
+                    isInitialized = true;
                     if (!chrome.runtime.lastError) { console.log("Saved initial default structure."); setTimeout(() => { if(statusElement.textContent.startsWith('Initializing')) { statusElement.textContent = ''; statusElement.style.opacity = '0'; } }, 2000); }
                     else { console.error("Failed to save initial defaults:", chrome.runtime.lastError); }
                 });
            } else {
-               isInitialized = true; // Set initialized if settings loaded ok
+               isInitialized = true;
            }
         }
         updateUIFromSettings(settingsToUse);
@@ -305,35 +391,43 @@ function handleBankChange(event) {
         const settings = sanitizeSettings(result[settingsStorageKey]);
         settings.selectedBank = newBank;
         updateUIFromSettings(settings);
-        saveSettingsToStorage(); // This will now trigger showSavedStatus on success
+        saveSettingsToStorage();
     });
 }
 
 function handleClearAll() {
     if (!isInitialized) return;
-    if (confirm(`Clear ALL timestamps AND reset name for Bank ${currentSelectedBank}?`)) {
+    if (confirm(`Clear ALL timestamps AND reset ALL pad names for Bank ${currentSelectedBank}? This will also reset the Bank Name.`)) {
          chrome.storage.local.get([settingsStorageKey], (result) => {
              if (chrome.runtime.lastError) { console.error("ClearAll Error: Get failed", chrome.runtime.lastError); statusElement.textContent = 'Error reading settings.'; statusElement.style.color = 'red'; statusElement.style.opacity = '1'; return; }
              const settingsToSave = sanitizeSettings(result[settingsStorageKey]);
-
+             const defaultBankData = getDefaultBankData();
              let changed = false;
+
              if(settingsToSave.banks[currentSelectedBank]) {
-                if(Object.values(settingsToSave.banks[currentSelectedBank].timestamps || {}).some(ts => ts !== null)) {
-                    settingsToSave.banks[currentSelectedBank].timestamps = getDefaultBankData().timestamps;
+                if(JSON.stringify(settingsToSave.banks[currentSelectedBank].timestamps) !== JSON.stringify(defaultBankData.timestamps)) {
+                    settingsToSave.banks[currentSelectedBank].timestamps = defaultBankData.timestamps;
                     changed = true;
+                }
+                if(JSON.stringify(settingsToSave.banks[currentSelectedBank].padNames) !== JSON.stringify(defaultBankData.padNames)) {
+                     settingsToSave.banks[currentSelectedBank].padNames = defaultBankData.padNames;
+                     changed = true;
                 }
                 if(settingsToSave.banks[currentSelectedBank].name !== null) {
                     settingsToSave.banks[currentSelectedBank].name = null;
                     changed = true;
                 }
+             } else {
+                 settingsToSave.banks[currentSelectedBank] = defaultBankData;
+                 changed = true;
              }
 
              if (!changed) {
-                 console.log(`[Options Clear] Bank ${currentSelectedBank} already empty.`);
-                 statusElement.textContent = `Bank ${currentSelectedBank} already empty.`;
+                 console.log(`[Options Clear] Bank ${currentSelectedBank} already empty/default.`);
+                 statusElement.textContent = `Bank ${currentSelectedBank} already default.`;
                  statusElement.style.color = 'var(--status-info)'; statusElement.style.opacity = '1';
-                 setTimeout(() => { if (statusElement.textContent.includes('already empty')) { statusElement.textContent = ''; statusElement.style.opacity = '0';} }, 2000);
-                 return; // Don't save if nothing changed
+                 setTimeout(() => { if (statusElement.textContent.includes('already default')) { statusElement.textContent = ''; statusElement.style.opacity = '0';} }, 2000);
+                 return;
              }
 
              settingsToSave.selectedBank = currentSelectedBank;
@@ -341,48 +435,152 @@ function handleClearAll() {
              chrome.storage.local.set({ [settingsStorageKey]: settingsToSave }, () => {
                  if (chrome.runtime.lastError) { console.error("ClearAll Error: Set failed", chrome.runtime.lastError); statusElement.textContent = `Error clearing Bank ${currentSelectedBank}.`; statusElement.style.color = 'red'; statusElement.style.opacity = '1'; }
                  else {
-                     console.log(`[Options Clear] Bank ${currentSelectedBank} timestamps cleared and name reset.`);
-                     // Let storage.onChanged update UI, and saveSettingsToStorage handle "Saved." feedback implicitly
-                     showSavedStatus(); // Explicitly show saved here is fine too for immediate feedback
+                     console.log(`[Options Clear] Bank ${currentSelectedBank} cleared.`);
+                     showSavedStatus();
                  }
              });
          });
     }
 }
 
-
 function handleEnableToggle() {
     if (!isInitialized || !enableButtonElement) return;
     const currentIsEnabled = enableButtonElement.classList.contains('enabled-state');
     const newState = !currentIsEnabled;
     console.log(`[Options Enable Toggle] Button clicked. Intending to set state to: ${newState}`);
-    saveSettingsToStorage(null, newState); // This will now trigger showSavedStatus on success
+    saveSettingsToStorage(null, newState);
 }
 
-function handlePadInputChange(event) {
+function handlePadTimeInputChange(event) {
     if (!isInitialized) return;
-    const inputElement = event.target; const key = inputElement.dataset.key; let value = inputElement.value;
-    if (!key || key === '0') return; let finalValue = null;
-    if (value !== '') { const num = parseFloat(value); if (!isNaN(num) && num >= 0) { finalValue = num; } else { console.warn(`Invalid input for Pad ${key}: ${value}.`); } }
-    saveSettingsToStorage({ key: key, value: finalValue }); // This will now trigger showSavedStatus on success
+    const inputElement = event.target;
+    const key = inputElement.dataset.key;
+    if (!key || key === '0') return;
+
+    let value = inputElement.value;
+
+    value = value.replace(/[^0-9.]/g, '');
+    const decimalCheck = value.split('.');
+    if (decimalCheck.length > 2) {
+        value = decimalCheck[0] + "." + decimalCheck.slice(1).join('');
+    }
+
+    inputElement.value = value; // Keep user input visually during typing/blur intermediate
+
+    let finalValueToSave = null;
+    let formattedValue = '';
+
+    if (value !== '' && value !== '.') {
+        let num = parseFloat(value);
+        if (!isNaN(num)) {
+            if (num < 0) num = 0;
+            if (num > MAX_TIME_VALUE) {
+                 num = MAX_TIME_VALUE;
+                 console.log(`Input value capped at ${MAX_TIME_VALUE}`);
+            }
+            finalValueToSave = num;
+            formattedValue = num.toFixed(2); // Format to two decimals
+
+            if(formattedValue.length > MAX_TIME_INPUT_LENGTH) {
+                 console.warn(`Formatted value ${formattedValue} exceeds max length ${MAX_TIME_INPUT_LENGTH}.`);
+                 // Decide on behavior: truncate visual, or allow browser overflow?
+                 // Let's update the value to the formatted one, relying on maxlength/CSS for visual crop
+            }
+        } else {
+            finalValueToSave = null;
+            formattedValue = '';
+            console.warn(`Invalid final number input for Pad ${key}: ${value}. Clearing.`);
+        }
+    } else {
+         finalValueToSave = null;
+         formattedValue = '';
+    }
+
+    // Update input field visually with final formatted value only on change/blur
+    inputElement.value = formattedValue;
+
+    saveSettingsToStorage({ type: 'padTime', key: key, value: finalValueToSave });
 }
+
+
+function handlePadTimeInputTyping(event) {
+    const inputElement = event.target;
+
+    setTimeout(() => {
+        let currentVal = inputElement.value;
+        let sanitizedVal = currentVal.replace(/[^0-9.]/g, '');
+        const decimalCheck = sanitizedVal.split('.');
+        if (decimalCheck.length > 2) {
+             sanitizedVal = decimalCheck[0] + "." + decimalCheck.slice(1).join('');
+        }
+
+         if (decimalCheck.length === 2 && decimalCheck[1].length > 2) {
+             sanitizedVal = decimalCheck[0] + "." + decimalCheck[1].slice(0, 2);
+         }
+
+
+        if (sanitizedVal.length > MAX_TIME_INPUT_LENGTH) {
+             sanitizedVal = sanitizedVal.slice(0, MAX_TIME_INPUT_LENGTH);
+        }
+
+
+        if(inputElement.value !== sanitizedVal) {
+            const start = inputElement.selectionStart;
+            const end = inputElement.selectionEnd;
+            const delta = sanitizedVal.length - currentVal.length;
+
+            inputElement.value = sanitizedVal;
+
+            if (start !== null && end !== null) {
+
+                let newPos = Math.max(0, Math.min(sanitizedVal.length, start + delta));
+                inputElement.setSelectionRange(newPos, newPos);
+            }
+        }
+    }, 0);
+}
+
+
+function handlePadTimeInputFocus(event) {
+     if (!isInitialized) return;
+     const inputElement = event.target;
+     // inputElement.classList.add('editing');
+}
+
+
+function handlePadTimeInputBlur(event) {
+     if (!isInitialized) return;
+     const inputElement = event.target;
+     // inputElement.classList.remove('editing');
+     handlePadTimeInputChange(event);
+}
+
 
 function handlePadInputKeyDown(event) {
-    if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return;
     const inputElement = event.target;
     if (!inputElement.matches('.pad-input')) return;
-     if (!isInitialized) return;
+    if (!isInitialized) return;
 
-    event.preventDefault();
-    const key = inputElement.dataset.key;
-    const delta = event.key === 'ArrowUp' ? 0.01 : -0.01;
-    let currentValue = parseFloat(inputElement.value);
-    if (isNaN(currentValue)) { currentValue = 0; }
-    let newValue = Math.max(0, currentValue + delta);
-    newValue = parseFloat(newValue.toFixed(2));
-    inputElement.value = newValue.toFixed(2);
+    if (event.key === 'Enter') {
+         event.preventDefault();
+         inputElement.blur(); // Trigger blur to finalize edit and save
+    } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        const key = inputElement.dataset.key;
+        const delta = event.key === 'ArrowUp' ? 0.01 : -0.01;
 
-    saveSettingsToStorage({ key: key, value: newValue }); // This will now trigger showSavedStatus on success
+        let currentValue = parseFloat(inputElement.value);
+        if (isNaN(currentValue)) { currentValue = 0; }
+        let newValue = Math.max(0, currentValue + delta);
+
+        newValue = Math.min(newValue, MAX_TIME_VALUE);
+
+        const formattedNewValue = newValue.toFixed(2);
+        inputElement.value = formattedNewValue;
+
+
+        handlePadTimeInputChange({ target: inputElement });
+    }
 }
 
 
@@ -390,26 +588,80 @@ function handlePadAdjustClick(event) {
      if (!isInitialized) return;
     const button = event.target.closest('.pad-adjust'); if (!button) return;
     const key = button.dataset.key; const delta = parseFloat(button.dataset.delta); const padElement = button.closest('.mpc-pad'); const inputElement = padElement?.querySelector(`.pad-input[data-key="${key}"]`);
-    if (!inputElement || isNaN(delta)) return; let currentValue = parseFloat(inputElement.value); if (isNaN(currentValue)) { currentValue = 0; }
-    let newValue = Math.max(0, currentValue + delta); newValue = parseFloat(newValue.toFixed(2)); inputElement.value = newValue.toFixed(2);
-    saveSettingsToStorage({ key: key, value: newValue }); // This will now trigger showSavedStatus on success
+    if (!inputElement || isNaN(delta)) return;
+
+    let currentValue = parseFloat(inputElement.value);
+    if (isNaN(currentValue)) { currentValue = 0; }
+    let newValue = Math.max(0, currentValue + delta);
+
+    newValue = Math.min(newValue, MAX_TIME_VALUE);
+
+    inputElement.value = newValue.toFixed(2);
+
+
+     handlePadTimeInputChange({ target: inputElement });
 }
 
-function handlePadClearClick(event) {
+
+async function handlePadClearClick(event) {
      if (!isInitialized) return;
-    const button = event.target.closest('.pad-clear-button'); if (!button) return;
-    const key = button.dataset.key; const padElement = button.closest('.mpc-pad'); const inputElement = padElement?.querySelector(`.pad-input[data-key="${key}"]`);
-    if (!inputElement) return;
-    if (inputElement.value === '') return; // Don't save if already empty
-    inputElement.value = '';
-    saveSettingsToStorage({ key: key, value: null }); // This will now trigger showSavedStatus on success
+     const button = event.target.closest('.pad-clear-button'); if (!button) return;
+     const key = button.dataset.key;
+     if (!key || key === '0') return;
+
+     const padElement = button.closest('.mpc-pad');
+     const timeInputElement = padElement?.querySelector(`.pad-input[data-key="${key}"]`);
+     const nameDisplayElement = padElement?.querySelector('.pad-name-display');
+     const defaultPadName = `PAD ${key}`;
+
+     let needsUpdate = false;
+     try {
+        const result = await chrome.storage.local.get([settingsStorageKey]);
+        const settings = sanitizeSettings(result[settingsStorageKey]);
+
+        if (settings.banks[currentSelectedBank]?.timestamps[key] !== null) {
+            needsUpdate = true;
+        }
+        if (settings.banks[currentSelectedBank]?.padNames[key] !== defaultPadName) {
+             needsUpdate = true;
+        }
+
+        if (!needsUpdate) {
+             console.log(`Pad ${key} already cleared/default.`);
+             return;
+        }
+
+        if (settings.banks[currentSelectedBank]) {
+            if(settings.banks[currentSelectedBank].timestamps) {
+                settings.banks[currentSelectedBank].timestamps[key] = null;
+            }
+            if(settings.banks[currentSelectedBank].padNames) {
+                 settings.banks[currentSelectedBank].padNames[key] = defaultPadName;
+            }
+        }
+
+        if (timeInputElement) timeInputElement.value = '';
+        if (nameDisplayElement) nameDisplayElement.textContent = defaultPadName;
+        const nameInputElement = padElement?.querySelector(`.pad-name-input[data-key="${key}"]`);
+        if(nameInputElement) nameInputElement.value = defaultPadName;
+        padElement?.classList.remove('has-cue');
+
+        await chrome.storage.local.set({ [settingsStorageKey]: settings });
+        console.log(`Pad ${key} cleared (time set to null, name reset to ${defaultPadName}).`);
+        showSavedStatus();
+
+     } catch(error) {
+         console.error(`Error clearing pad ${key}:`, error);
+         statusElement.textContent = `Error clearing pad ${key}!`;
+         statusElement.style.color = 'red'; statusElement.style.opacity = '1';
+     }
 }
 
 function handleModeSwitchClick(event) {
     if (!isInitialized) return;
     const track = event.currentTarget; const currentMode = track.dataset.mode; const newMode = (currentMode === '1shot') ? 'hold' : '1shot';
     track.dataset.mode = newMode; if (displayModeElement) { displayModeElement.textContent = newMode.toUpperCase(); } if (screenAreaElement) { screenAreaElement.classList.toggle('screen-hold-mode', newMode === 'hold'); }
-    saveSettingsToStorage(); // This will now trigger showSavedStatus on success
+    saveSettingsToStorage();
 }
 
 
@@ -441,7 +693,6 @@ async function handleBankNameEdit(event) {
 
 
     const btnRect = button.getBoundingClientRect();
-    const containerRect = button.parentElement.getBoundingClientRect();
     input.style.position = 'absolute';
     input.style.top = `${button.offsetTop}px`;
     input.style.left = `${button.offsetLeft}px`;
@@ -504,7 +755,7 @@ function handleBankNameBlur(event) {
     originalButton.textContent = nameToSave || defaultName;
 
 
-    saveBankName(bankId, nameToSave); // This function now handles saving via storage.set, which triggers save feedback
+    saveBankName(bankId, nameToSave);
 }
 
 
@@ -523,10 +774,11 @@ async function handleSaveBank() {
 
         const dataToSave = {
             type: "youtubeSamplerBankData",
-            version: "1.0",
+            version: "1.1",
             name: bankData.name || null,
             mode: bankData.mode || '1shot',
-            timestamps: bankData.timestamps || getDefaultBankData().timestamps
+            timestamps: bankData.timestamps || getDefaultBankData().timestamps,
+            padNames: bankData.padNames || getDefaultPadNames()
         };
 
         const jsonData = JSON.stringify(dataToSave, null, 2);
@@ -537,14 +789,14 @@ async function handleSaveBank() {
         link.href = url;
 
         const customNamePart = bankData.name ? bankData.name.replace(/[^a-z0-9]/gi, '_').toLowerCase() : `bank_${bankId}`;
-        link.download = `youtube_mpc_${customNamePart}.json`; // Corrected filename
+        link.download = `youtube_mpc_${customNamePart}.json`;
 
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
 
-        statusElement.textContent = `Bank ${bankId} data prepared for download.`; // Changed feedback slightly
+        statusElement.textContent = `Bank ${bankId} data prepared for download.`;
         statusElement.style.color = 'var(--status-info)'; statusElement.style.opacity = '1';
         setTimeout(() => { if (statusElement.textContent.includes('prepared for download')) { statusElement.textContent = ''; statusElement.style.opacity = '0';} }, 2000);
 
@@ -581,13 +833,17 @@ function handleLoadBank() {
                 if (!loadedData || loadedData.type !== "youtubeSamplerBankData") {
                     throw new Error("Invalid or incompatible file format.");
                 }
-                if (typeof loadedData.name === 'undefined' || typeof loadedData.mode === 'undefined' || typeof loadedData.timestamps === 'undefined') {
-                    throw new Error("File is missing required bank data (name, mode, timestamps).");
+                if (typeof loadedData.mode === 'undefined' || typeof loadedData.timestamps === 'undefined') {
+                    throw new Error("File is missing required bank data (mode, timestamps).");
                 }
                 if (!['1shot', 'hold'].includes(loadedData.mode)) {
                     throw new Error(`Invalid mode found in file: ${loadedData.mode}`);
                 }
 
+
+                const loadedPadNames = loadedData.padNames && typeof loadedData.padNames === 'object'
+                    ? loadedData.padNames
+                    : getDefaultPadNames();
 
                 const result = await chrome.storage.local.get([settingsStorageKey]);
                 const settingsToSave = sanitizeSettings(result[settingsStorageKey]);
@@ -596,20 +852,22 @@ function handleLoadBank() {
                 settingsToSave.banks[bankId] = {
                     name: loadedData.name !== undefined ? String(loadedData.name || '').slice(0, MAX_BANK_NAME_LENGTH) : null,
                     mode: loadedData.mode,
-                    timestamps: loadedData.timestamps
+                    timestamps: loadedData.timestamps,
+                    padNames: loadedPadNames
                 };
 
 
                 settingsToSave.banks[bankId] = sanitizeSettings({isEnabled: true, selectedBank: bankId, banks:{[bankId]: settingsToSave.banks[bankId]}}).banks[bankId];
 
 
-                await chrome.storage.local.set({ [settingsStorageKey]: settingsToSave }); // This save will trigger the onChanged listener which updates UI
+                await chrome.storage.local.set({ [settingsStorageKey]: settingsToSave });
 
                 console.log(`[Options Load Bank] Bank ${bankId} loaded successfully from ${file.name}`);
-                // showSavedStatus(); // Let the onChanged listener handle UI update, feedback provided below
-                statusElement.textContent = `Bank ${bankId} loaded from ${file.name}.`; // Provide specific load feedback
+
+                statusElement.textContent = `Bank ${bankId} loaded from ${file.name}.`;
                 statusElement.style.color = 'green'; statusElement.style.opacity = '1';
                 setTimeout(() => { if (statusElement.textContent.includes('loaded from')) { statusElement.textContent = ''; statusElement.style.opacity = '0';} }, 2500);
+                showSavedStatus();
 
 
             } catch (error) {
@@ -629,6 +887,98 @@ function handleLoadBank() {
     };
 
     input.click();
+}
+
+function handlePadNameEditStart(event) {
+    if (!isInitialized) return;
+    const target = event.target;
+
+    if (!target.matches('.pad-name-display')) {
+        return;
+    }
+
+    const padElement = target.closest('.mpc-pad');
+    if (!padElement || padElement.id === 'pad-0') return;
+
+    const padKey = padElement.dataset.key;
+    if (!padKey) return;
+
+
+    if (currentEditingPadInput && currentEditingPadInput.dataset.key !== padKey) {
+         currentEditingPadInput.blur();
+    }
+
+    const nameDisplay = padElement.querySelector('.pad-name-display');
+    const nameInput = padElement.querySelector('.pad-name-input');
+
+    if (!nameDisplay || !nameInput) return;
+
+
+    if(nameInput.style.display === 'block') return;
+
+    nameDisplay.style.display = 'none';
+    nameInput.style.display = 'block';
+
+    nameInput.value = nameDisplay.textContent || '';
+    nameInput.dataset.key = padKey;
+    nameInput.dataset.originalValue = nameDisplay.textContent || '';
+    nameInput.select();
+    nameInput.focus();
+
+    currentEditingPadInput = nameInput;
+
+    nameInput.addEventListener('blur', handlePadNameInputChange, { once: true });
+    nameInput.addEventListener('keydown', handlePadNameInputKeyDown);
+}
+
+function handlePadNameInputChange(event) { // Handles blur for pad name input
+    const inputElement = event.target;
+    if (!inputElement.matches('.pad-name-input')) return;
+
+    const padKey = inputElement.dataset.key;
+    const bankKey = currentSelectedBank;
+    const newValue = inputElement.value;
+
+    inputElement.style.display = 'none';
+    const nameDisplay = inputElement.closest('.mpc-pad')?.querySelector('.pad-name-display');
+    if(nameDisplay) nameDisplay.style.display = 'block';
+
+
+     inputElement.removeEventListener('keydown', handlePadNameInputKeyDown);
+     currentEditingPadInput = null;
+
+    if (!padKey || !bankKey) return;
+
+    if(newValue === 'ESCAPE_TRIGGERED') {
+         console.log(`Pad ${padKey} name edit cancelled.`);
+         if(nameDisplay) nameDisplay.textContent = inputElement.dataset.originalValue || `PAD ${padKey}`;
+         return;
+    }
+
+    const finalName = (newValue || '').trim().slice(0, MAX_PAD_NAME_LENGTH) || `PAD ${padKey}`;
+
+    if(nameDisplay) nameDisplay.textContent = finalName;
+
+    if(finalName !== inputElement.dataset.originalValue) {
+        savePadName(bankKey, padKey, finalName);
+    } else {
+        console.log(`Pad ${padKey} name unchanged after edit.`);
+    }
+
+}
+
+function handlePadNameInputKeyDown(event) { // Handles Enter/Escape for pad name input
+     const inputElement = event.target;
+     if (!inputElement.matches('.pad-name-input')) return;
+
+     if (event.key === 'Enter') {
+        event.preventDefault();
+        inputElement.blur();
+     } else if (event.key === 'Escape') {
+        event.preventDefault();
+        inputElement.value = 'ESCAPE_TRIGGERED';
+        inputElement.blur();
+     }
 }
 
 
@@ -652,9 +1002,51 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const padArea = document.querySelector('.pad-area');
     if (padArea) {
-        padArea.addEventListener('change', (event) => { if (event.target.matches('.pad-input')) { handlePadInputChange(event); } });
-        padArea.addEventListener('click', (event) => { const clearButton = event.target.closest('.pad-clear-button'); const adjustButton = event.target.closest('.pad-adjust'); if (clearButton) { handlePadClearClick(event); } else if (adjustButton) { handlePadAdjustClick(event); } });
-        padArea.addEventListener('keydown', (event) => { if (event.target.matches('.pad-input')) { handlePadInputKeyDown(event); } });
+        // Listener for timestamp input changes (on blur/commit)
+        padArea.addEventListener('change', (event) => {
+             if (event.target.matches('.pad-input')) {
+                 // This might be redundant if blur handler always calls it
+                 // handlePadTimeInputChange(event);
+             }
+         });
+         // Listener for button clicks (+, -, x) and time input focus activation
+        padArea.addEventListener('click', (event) => {
+            const clearButton = event.target.closest('.pad-clear-button');
+            const adjustButton = event.target.closest('.pad-adjust');
+            const timeInput = event.target.closest('.pad-input');
+
+            if (clearButton) { handlePadClearClick(event); }
+            else if (adjustButton) { handlePadAdjustClick(event); }
+            else if (timeInput && document.activeElement !== timeInput) {
+                 timeInput.focus();
+            }
+        });
+         // Listener for keydown events (Arrows/Enter on time input)
+        padArea.addEventListener('keydown', (event) => {
+            if (event.target.matches('.pad-input')) {
+                handlePadInputKeyDown(event);
+            }
+        });
+         // Listener for validating time input WHILE typing
+         padArea.addEventListener('input', (event) => {
+             if (event.target.matches('.pad-input')) {
+                 handlePadTimeInputTyping(event);
+             }
+         });
+         // Listener for focus/blur on time input
+         padArea.addEventListener('focusin', (event) => {
+             if (event.target.matches('.pad-input')) {
+                 handlePadTimeInputFocus(event);
+             }
+         });
+         padArea.addEventListener('focusout', (event) => {
+             if (event.target.matches('.pad-input')) {
+                 handlePadTimeInputBlur(event);
+             }
+         });
+
+        // Add listener for starting pad name edit (dblclick on name display)
+         padArea.addEventListener('dblclick', handlePadNameEditStart);
     }
 
     document.getElementById('save-bank')?.addEventListener('click', handleSaveBank);
@@ -666,8 +1058,16 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'local' && changes[settingsStorageKey]) {
         console.log('[Options storage.onChanged] Detected external change in settings.');
         const newSettings = changes[settingsStorageKey].newValue;
-        if (newSettings) { updateUIFromSettings(sanitizeSettings(newSettings)); }
-        else { console.warn("[Options storage.onChanged] Settings cleared externally."); updateUIFromSettings(getDefaultSettings()); }
+        if (newSettings) {
+            if (!document.activeElement || !document.activeElement.matches('.pad-name-input, .pad-input, .temp-bank-name-input')) {
+                 updateUIFromSettings(sanitizeSettings(newSettings));
+            } else {
+                 console.log("[Options storage.onChanged] Input focus detected, delaying UI update.");
+            }
+        } else {
+            console.warn("[Options storage.onChanged] Settings cleared externally.");
+            updateUIFromSettings(getDefaultSettings());
+        }
     }
 });
 

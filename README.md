@@ -1,8 +1,8 @@
 # YouTube MPC
 
-![](https://img.shields.io/badge/JavaScript-62.2%25-F7DF1E?logo=javascript&logoColor=black)
-![](https://img.shields.io/badge/HTML-19.0%25-E34F26?logo=html5&logoColor=white)
-![](https://img.shields.io/badge/CSS-18.8%25-1572B6?logo=css3&logoColor=white)
+![](https://img.shields.io/badge/JavaScript-62.7%25-F7DF1E?logo=javascript&logoColor=black)
+![](https://img.shields.io/badge/HTML-18.4%25-E34F26?logo=html5&logoColor=white)
+![](https://img.shields.io/badge/CSS-18.9%25-1572B6?logo=css3&logoColor=white)
 ![](https://img.shields.io/badge/License-MIT-yellow.svg) 
 > Turn YouTube videos into a playable sampler instrument using your numpad!
 
@@ -33,13 +33,15 @@ Turn any YouTube video into a playable source. Map precise moments to your numpa
 ## Features
 
 -   **Instant Numpad Triggering:** Play assigned YouTube timestamps instantly with Numpad 1-9.
+-   **Stop Control:** Use `Numpad 0` to stop playback.
 -   **On-the-Fly Cue Capture:** While watching YouTube, press `Ctrl + Numpad (1-9)` to map the current moment to a pad.
+-   **Custom Pad Names:** Assign custom labels to each pad (1-9) for better organization (double-click name to edit).
 -   **Performance Banks:** Organize samples across four banks (A, B, C, D). Switch using Numpad `/`, `*`, `-`, `+`.
+-   **Save/Load Banks:** Save your bank configurations (`.json` files) and load them back anytime. Build your sample kit library!
 -   **Expressive Playback Modes:** Choose "1-Shot" (trigger and play) or "Hold" (play only while held down) per bank. Toggle with `Ctrl + Numpad .`.
 -   **MPC-Style Control Panel:** Click the extension icon for an interface to manage cues, fine-tune timings (`.00` precision), rename banks, set modes, and more.
--   **Save/Load Banks:** Save your bank configurations (`.json` files) and load them back anytime. Build your sample kit library!
 -   **Quick On/Off Toggle:** Enable/disable numpad control instantly with Numpad `.` (Decimal).
--   **Stop Control:** Use `Numpad 0` to stop playback.
+
 
 ## Installation
 
@@ -64,7 +66,7 @@ There are a two ways to install YouTube MPC:
 2.  Ensure the extension is ON (check for the Green or Yellow colored icon in your Chrome toolbar). Select your active Bank using Numpad `/`, `*`, `-`, or `+`, or by clicking the desired bank button (A/B/C/D) in the extension panel (opened via the toolbar icon).
 3.  While focused on the YouTube video player, find your sample points and press `Ctrl + Numpad (1-9)` to instantly map/record the current time to that key (while pressing `Ctrl` check for Red colored icon in your Chrome toolbar).
 4.  Perform your samples! Press `Numpad (1-9)` anytime while on the YouTube page to trigger playback from your saved cue points. (`Numpad 0` stops playback).
-5.  Need to fine-tune? Click the YouTube MPC icon to open the control panel. Here you can manually edit timestamps with two-decimal (`.00`) precision, rename banks, switch playback modes, and Save/Load your banks. (Remember, keyboard shortcuts only work when the YouTube page/tab itself is active, not when the popup panel is focused).
+5.  Need to fine-tune? Click the YouTube MPC icon to open the control panel. Here you can: manually edit timestamps (click the time value) with `.00` precision (up to 99999.99s, press Enter or click away to save); **double-click a pad name (e.g., "PAD 1") to assign a custom label**; rename banks (double-click bank button); switch playback modes; and Save/Load your banks. (Remember, keyboard shortcuts work on the YouTube page, not the panel).
 
 ## Demo Banks
 

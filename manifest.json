@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "YouTube MPC",
+  "name": "Numpad Cues for YouTube",
   "version": "1.0",
-  "description": "Remaps number keys (1-0) to jump to custom timestamps in YouTube videos.",
+  "description": "Assign YouTube timestamps to Numpad keys 1-9 for instant cue playback. Numpad 0 stops/resets.",
   "permissions": [
     "storage"
   ],
@@ -14,7 +14,7 @@
   ],
   "options_page": "options.html",
   "action": {
-    "default_title": "YouTube MPC Options",
+    "default_title": "Numpad Cues for YouTube Options",
     "default_popup": "options.html",
     "default_icon": {
       "16": "icons/16x/16_off.png",

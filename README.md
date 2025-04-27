@@ -75,16 +75,16 @@ There are a two ways to install YouTube MPC:
 
 ## Demo Banks
 
-To help you get started quickly, here are some example bank files (`.json`) you can load using the "Load Bank" button in the extension panel.
+To help you get started quickly and explore different sampling possibilities, example bank files (`.json`) are available for download from the GitHub Releases page. Each release pack contains `.json` files and instructions on which YouTube videos to use them with.
 
-* **Demo Bank 1:** `[Link to Demo_Bank_1.json]`
-    * Designed for use with YouTube Video: `[Link to specific YouTube Video]`
-    * Description: *Briefly describe what kind of samples are in this bank.*
-* **Demo Bank 2:** `[Link to Demo_Bank_2.json]`
-    * Designed for use with YouTube Video: `[Link to specific YouTube Video]`
-    * Description: *Briefly describe what kind of samples are in this bank.*
+You can find the demo packs here:
 
-**Disclaimer:** YouTube contains copyrighted material. Please ensure you respect copyright laws and fair use principles when using YouTube MPC with content you do not own the rights to.
+* **[Quick Start / Assorted Demo Pack](https://github.com/usssi/YouTube-MPC/releases/tag/Demos)** - Includes banks with 808 drums, vocal chops, a funk riff (Robot Rock sample), and more to quickly test features.
+* **[Kanye West 'Graduation' Samples Pack](https://github.com/usssi/YouTube-MPC/releases/tag/Demo-Kanye)** - Includes banks recreating samples used in tracks from the "Graduation" album.
+
+Download the `.json` files from the "Assets" section of the linked release pages and use the "Load Bank" button in the extension panel to import them.
+
+> **Disclaimer:** YouTube contains copyrighted material. Please ensure you respect copyright laws and fair use principles when using Numpad Cues for YouTube with content you do not own the rights to. The demo banks are provided for educational and illustrative purposes only.
 
 ## Keyboard Shortcuts
 

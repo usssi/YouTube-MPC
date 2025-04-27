@@ -4,11 +4,15 @@
 ![](https://img.shields.io/badge/HTML-18.4%25-E34F26?logo=html5&logoColor=white)
 ![](https://img.shields.io/badge/CSS-18.9%25-1572B6?logo=css3&logoColor=white)
 ![](https://img.shields.io/badge/License-MIT-yellow.svg) 
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/hlkhijejilomoffjmjbipnbkadjjikko?label=Chrome%20Web%20Store&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/numpad-cues-for-youtube/hlkhijejilomoffjmjbipnbkadjjikko?hl=en-GB&authuser=0)
 > Turn YouTube videos into a playable sampler instrument using your numpad!
 
 ## Demo / Screenshots
 
-*Visuals coming soon!*
+<p align="center">
+  <img src="https://lh3.googleusercontent.com/IloCvQRCwsw-oaqQHixI7gXTrP2syApps2oEJEhnr3z-DaDlbVpXrHx5AG0lTxuPcdRP9CXVUdAqmI0hK7cPCwuMsP8=s1280-w1280-h800" alt="Screenshot/Demo 1" width="250"/>
+  &nbsp;&nbsp; <img src="https://lh3.googleusercontent.com/oeEIBGrHLEIbfWiMdD6LZKTuqKD6rKn3zljMrFPWxYnYYPpRuvou75qTV14kYB9op1rrO1p3W--oTF0As-pPWoPkXZQ=s1280-w1280-h800" alt="Screenshot/Demo 2" width="250"/>
+</p>
 
 ---
 
@@ -30,6 +34,8 @@
 
 Turn any YouTube video into a playable source. Map precise moments to your numpad keys (1-9) and trigger them instantly for live remixing, beat making, sound design, or creative analysis.
 
+* **[View on Chrome Web Store](https://chromewebstore.google.com/detail/numpad-cues-for-youtube/hlkhijejilomoffjmjbipnbkadjjikko?hl=en-GB&authuser=0)**
+
 ## Features
 
 -   **Instant Numpad Triggering:** Play assigned YouTube timestamps instantly with Numpad 1-9.
@@ -48,8 +54,7 @@ Turn any YouTube video into a playable source. Map precise moments to your numpa
 There are a two ways to install YouTube MPC:
 
 1.  **Chrome Web Store (Recommended):**
-    * Install directly from the official store for automatic updates.
-    * **[Link Coming Soon!]**
+    * **[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/numpad-cues-for-youtube/hlkhijejilomoffjmjbipnbkadjjikko?hl=en-GB&authuser=0)**
 
 2.  **From GitHub Releases (`.zip` file):**
     * Go to the [Releases page](https://github.com/usssi/YouTube-MPC/releases).  Download the `.zip` file from the latest release.
